@@ -379,14 +379,16 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        userName = user.displayName || user.email || '名無しユーザー'; // Googleユーザー名またはメールを使用
+                        // ユーザー名が取得できない場合に備えて、displayName, email, またはUIDの一部を使用
+                        userName = user.displayName || user.email || `ユーザー (${userId.substring(0, 8)}...)`; 
                         userIdDisplay.textContent = `${userName} (${userId.substring(0, 8)}...)`; // 表示を更新
                         signInButton.classList.add('hidden');
                         signOutButton.classList.remove('hidden');
                         console.log("Firebase authenticated. User:", user.uid, user.displayName, user.email);
                         isAuthReady = true;
-                        await generateDummyData(); // ダミーデータ生成を認証後に実行
-                        renderCurrentTabContent(); // 認証後に現在のタブをレンダリング
+                        // ログイン後にのみデータをロード
+                        await generateDummyData(); 
+                        renderCurrentTabContent(); 
                     } else {
                         userId = null;
                         userName = null;
@@ -415,7 +417,18 @@
                 // 認証成功はonAuthStateChangedで処理される
             } catch (error) {
                 console.error("Googleサインイン中にエラーが発生しました:", error);
-                showMessageModal("サインインエラー", `Googleサインインに失敗しました: ${error.message}`);
+                // エラーメッセージをユーザーに分かりやすく表示
+                let errorMessage = `Googleサインインに失敗しました: ${error.message}`;
+                if (error.code === 'auth/popup-closed-by-user') {
+                    errorMessage = 'サインインがキャンセルされました。';
+                } else if (error.code === 'auth/unauthorized-domain') {
+                    errorMessage = '認証ドメインが許可されていません。Google Cloud PlatformのOAuthクライアントID設定で、承認済みJavaScript生成元とリダイレクトURIが正しく設定されているか確認してください。';
+                } else if (error.code === 'auth/network-request-failed') {
+                    errorMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください。';
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    errorMessage = 'サインインポップアップがブロックされたか、別のポップアップが既に開いています。';
+                }
+                showMessageModal("サインインエラー", errorMessage);
             }
         };
 
@@ -424,6 +437,16 @@
             try {
                 await signOut(auth);
                 showMessageModal("ログアウト", "正常にログアウトしました。");
+                // ログアウト後、UIを未ログイン状態にリセット
+                userId = null;
+                userName = null;
+                userIdDisplay.textContent = '未ログイン';
+                signInButton.classList.remove('hidden');
+                signOutButton.classList.add('hidden');
+                equipmentListDiv.innerHTML = '<p class="text-center text-gray-500 col-span-full">ログインして機器リストを表示してください。</p>';
+                equipmentManagementListDiv.innerHTML = '<p class="text-center text-gray-500 col-span-full">ログインして機器管理を表示してください。</p>';
+                userManagementListDiv.innerHTML = '<p class="text-center text-gray-500 col-span-full">ログインしてユーザー管理を表示してください。</p>';
+                loadingIndicator.classList.add('hidden');
             } catch (error) {
                 console.error("ログアウト中にエラーが発生しました:", error);
                 showMessageModal("ログアウトエラー", `ログアウトに失敗しました: ${error.message}`);
@@ -701,10 +724,8 @@
             const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
             const q = query(usersCollectionRef);
 
-            loadingIndicator.classList.remove('hidden');
-
             onSnapshot(q, (snapshot) => {
-                loadingIndicator.classList.add('hidden');
+                loadingIndicator.classList.add('hidden'); // ここで隠す
                 allUsers = []; // 全ユーザーデータを更新
                 snapshot.forEach((doc) => {
                     allUsers.push({ id: doc.id, ...doc.data() });
