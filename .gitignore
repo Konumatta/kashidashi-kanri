@@ -28,3 +28,14 @@ ehthumbs.db
 # Build artifacts (if you ever add a build step)
 dist/
 build/
+
+# 画像ファイル
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.webp
+*.tiff
+*.ico
