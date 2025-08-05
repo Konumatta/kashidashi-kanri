@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貸出管理アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+            width: 100%;
+            max-width: 960px;
+        }
+        .tab-button {
+            padding: 12px 24px;
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            background-color: #e2e8f0; /* gray-200 */
+            color: #4a5568; /* gray-700 */
+        }
+        .tab-button.active {
+            background-color: #ffffff;
+            color: #2b6cb0; /* blue-700 */
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .tab-content {
+            display: none;
+            padding-top: 20px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .status-available {
+            background-color: #d1fae5; /* green-100 */
+            color: #065f46; /* green-800 */
+        }
+        .status-on-loan {
+            background-color: #fee2e2; /* red-100 */
+            color: #991b1b; /* red-800 */
+        }
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 500px;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .message-modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .message-modal-content button {
+            margin-top: 20px;
+            background-color: #4299e1;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .message-modal-content button:hover {
+            background-color: #3182ce;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f8f8;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f0f2f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">貸出管理アプリ</h1>
+        <p class="text-sm text-gray-600 mb-4 text-center">
+            あなたのユーザーID: <span id="userIdDisplay" class="font-semibold text-blue-600 break-all"></span>
+        </p>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-300 mb-6">
+            <button id="tabLoanList" class="tab-button active">貸出リスト</button>
+            <button id="tabEquipmentManagement" class="tab-button">機器管理</button>
+            <button id="tabUserManagement" class="tab-button">ユーザー管理</button>
+        </div>
+
+        <!-- Loan List Tab Content -->
+        <div id="contentLoanList" class="tab-content active">
+            <div class="mb-6">
+                <input type="text" id="searchInput" placeholder="機器名で検索..."
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div id="loadingIndicator" class="text-center text-gray-600 mb-4 hidden">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                データを読み込み中...
+            </div>
+
+            <div id="equipmentList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 機器リストがここに動的に挿入されます -->
+            </div>
+        </div>
+
+        <!-- Equipment Management Tab Content -->
+        <div id="contentEquipmentManagement" class="tab-content">
+            <button id="addEquipmentButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 mb-4">
+                新しい機器を追加
+            </button>
+            <div id="equipmentManagementList">
+                <!-- 機器管理リストがここに動的に挿入されます -->
+            </div>
+        </div>
+
+        <!-- User Management Tab Content -->
+        <div id="contentUserManagement" class="tab-content">
+            <button id="addUserButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 mb-4">
+                新しいユーザーを追加
+            </button>
+            <div id="userManagementList">
+                <!-- ユーザー管理リストがここに動的に挿入されます -->
+            </div>
+        </div>
+
+        <!-- 貸出/返却モーダル -->
+        <div id="loanModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" data-modal-id="loanModal">&times;</span>
+                <h2 id="loanModalTitle" class="text-2xl font-semibold mb-4 text-gray-800"></h2>
+                <p id="loanModalMessage" class="mb-4 text-gray-700"></p>
+                
+                <div id="borrowerSelectionGroup" class="mb-4">
+                    <label for="borrowerSelect" class="block text-gray-700 text-sm font-bold mb-2">貸出者を選択:</label>
+                    <select id="borrowerSelect" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-2">
+                        <option value="">-- ユーザーを選択 --</option>
+                    </select>
+                    <p class="text-center text-gray-600 mb-2">または</p>
+                    <label for="newBorrowerName" class="block text-gray-700 text-sm font-bold mb-2">新しい貸出者名を入力:</label>
+                    <input type="text" id="newBorrowerName" placeholder="新しい貸出者名"
+                           class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button id="cancelLoanModalButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                        キャンセル
+                    </button>
+                    <button id="confirmLoanModalButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                        確認
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 機器追加/編集モーダル -->
+        <div id="equipmentFormModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" data-modal-id="equipmentFormModal">&times;</span>
+                <h2 id="equipmentFormModalTitle" class="text-2xl font-semibold mb-4 text-gray-800">機器の追加/編集</h2>
+                <form id="equipmentForm">
+                    <div class="mb-4">
+                        <label for="equipmentName" class="block text-gray-700 text-sm font-bold mb-2">機器名:</label>
+                        <input type="text" id="equipmentName" required
+                               class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" id="cancelEquipmentFormButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            キャンセル
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ユーザー追加/編集モーダル -->
+        <div id="userFormModal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" data-modal-id="userFormModal">&times;</span>
+                <h2 id="userFormModalTitle" class="text-2xl font-semibold mb-4 text-gray-800">ユーザーの追加/編集</h2>
+                <form id="userForm">
+                    <div class="mb-4">
+                        <label for="userName" class="block text-gray-700 text-sm font-bold mb-2">ユーザー名:</label>
+                        <input type="text" id="userName" required
+                               class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    <div class="mb-4">
+                        <label for="userContact" class="block text-gray-700 text-sm font-bold mb-2">連絡先情報 (任意):</label>
+                        <input type="text" id="userContact"
+                               class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" id="cancelUserFormButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            キャンセル
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- カスタムメッセージモーダル -->
+        <div id="messageModal" class="modal">
+            <div class="message-modal-content">
+                <h2 id="messageModalTitle" class="text-xl font-semibold mb-4 text-gray-800"></h2>
+                <p id="messageModalText" class="mb-4 text-gray-700"></p>
+                <button id="closeMessageModalButton">閉じる</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // Firebaseのインポート
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebaseプロジェクトの設定情報
+        // ここにFirebaseコンソールから取得したfirebaseConfigオブジェクトを貼り付けます
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzWP22OJEhGrD_c3KZQDYNXqgvWvCWPlI", // あなたのAPIキー
+            authDomain: "lendingmanager-e01f6.firebaseapp.com", // あなたのAuthドメイン
+            projectId: "lendingmanager-e01f6", // あなたのプロジェクトID
+            storageBucket: "lendingmanager-e01f6.firebasestorage.app", // あなたのStorageバケット
+            messagingSenderId: "860192988005", // あなたのMessaging Sender ID
+            appId: "1:860192988005:web:3605c04e960036d0fcdf8c" // あなたのApp ID
+        };
+
+        // アプリケーションID (Firestoreのパスに使用)
+        // GitHub Pagesにデプロイする場合、projectIdをappIdとして使用します
+        const appId = firebaseConfig.projectId; 
+        
+        // Canvas環境で提供される認証トークンはGitHub Pagesでは使用しないため削除
+        // const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+        let allUsers = []; // 全ユーザーデータを保持
+
+        // UI要素の取得
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        // Tabs
+        const tabLoanList = document.getElementById('tabLoanList');
+        const tabEquipmentManagement = document.getElementById('tabEquipmentManagement');
+        const tabUserManagement = document.getElementById('tabUserManagement');
+        const contentLoanList = document.getElementById('contentLoanList');
+        const contentEquipmentManagement = document.getElementById('contentEquipmentManagement');
+        const contentUserManagement = document.getElementById('contentUserManagement');
+
+        // Loan List Tab Elements
+        const searchInput = document.getElementById('searchInput');
+        const equipmentListDiv = document.getElementById('equipmentList');
+
+        // Equipment Management Tab Elements
+        const addEquipmentButton = document.getElementById('addEquipmentButton');
+        const equipmentManagementListDiv = document.getElementById('equipmentManagementList');
+
+        // User Management Tab Elements
+        const addUserButton = document.getElementById('addUserButton');
+        const userManagementListDiv = document.getElementById('userManagementList');
+
+        // Modals
+        const loanModal = document.getElementById('loanModal');
+        const loanModalTitle = document.getElementById('loanModalTitle');
+        const loanModalMessage = document.getElementById('loanModalMessage');
+        const borrowerSelect = document.getElementById('borrowerSelect');
+        const newBorrowerNameInput = document.getElementById('newBorrowerName');
+        const confirmLoanModalButton = document.getElementById('confirmLoanModalButton');
+        const cancelLoanModalButton = document.getElementById('cancelLoanModalButton');
+
+        const equipmentFormModal = document.getElementById('equipmentFormModal');
+        const equipmentFormModalTitle = document.getElementById('equipmentFormModalTitle');
+        const equipmentForm = document.getElementById('equipmentForm');
+        const equipmentNameInput = document.getElementById('equipmentName');
+        const cancelEquipmentFormButton = document.getElementById('cancelEquipmentFormButton');
+        let currentEquipmentId = null; // 編集中の機器ID
+
+        const userFormModal = document.getElementById('userFormModal');
+        const userFormModalTitle = document.getElementById('userFormModalTitle');
+        const userForm = document.getElementById('userForm');
+        const userNameInput = document.getElementById('userName');
+        const userContactInput = document.getElementById('userContact');
+        const cancelUserFormButton = document.getElementById('cancelUserFormButton');
+        let currentUserId = null; // 編集中のユーザーID
+
+        const messageModal = document.getElementById('messageModal');
+        const messageModalTitle = document.getElementById('messageModalTitle');
+        const messageModalText = document.getElementById('messageModalText');
+        const closeMessageModalButton = document.getElementById('closeMessageModalButton');
+
+        let currentAction = null; // 'lend' or 'return' for loan modal
+
+        // --- Firebaseの初期化と認証 ---
+        const initializeFirebase = async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        console.log("Firebase authenticated. User ID:", userId);
+                        isAuthReady = true;
+                        await generateDummyData(); // ダミーデータ生成を認証後に実行
+                        renderCurrentTabContent(); // 認証後に現在のタブをレンダリング
+                    } else {
+                        // GitHub Pagesにデプロイする場合、匿名認証を使用
+                        await signInAnonymously(auth);
+                        console.log("Firebase authentication attempted (Anonymous).");
+                    }
+                });
+            } catch (error) {
+                console.error("Firebaseの初期化または認証中にエラーが発生しました:", error);
+                showMessageModal("エラー", "Firebaseの初期化に失敗しました。コンソールを確認してください。");
+            }
+        };
+
+        // --- ダミーデータの生成 ---
+        const generateDummyData = async () => {
+            if (!db || !userId) {
+                console.warn("FirestoreまたはユーザーIDが利用できません。ダミーデータ生成をスキップします。");
+                return;
+            }
+
+            const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
+            const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
+
+            const usersSnapshot = await getDocs(query(usersCollectionRef));
+            const equipmentSnapshot = await getDocs(query(equipmentCollectionRef));
+
+            if (usersSnapshot.empty && equipmentSnapshot.empty) {
+                loadingIndicator.textContent = "ダミーデータを生成中...";
+                loadingIndicator.classList.remove('hidden');
+
+                const dummyUserNames = ['山田太郎', '佐藤花子', '田中一郎', '鈴木美咲', '高橋健太', '小林大輔', '伊藤優子', '渡辺啓太', '山本彩', '中村拓也'];
+                const dummyUsers = [];
+
+                // ダミーユーザーを生成
+                for (const name of dummyUserNames) {
+                    const userDocRef = await addDoc(usersCollectionRef, {
+                        name: name,
+                        contactInfo: `${name.split(' ')[0].toLowerCase()}@example.com`,
+                        isDeleted: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    dummyUsers.push({ id: userDocRef.id, name: name });
+                }
+                console.log(`${dummyUsers.length}件のダミーユーザーが生成されました。`);
+
+                // ダミー機器を生成
+                const categories = ['PC', 'プロジェクター', 'カメラ', 'マイク', 'モニター', 'タブレット', 'プリンター', 'スキャナー', 'ルーター', 'キーボード'];
+                for (let i = 1; i <= 100; i++) {
+                    const category = categories[Math.floor(Math.random() * categories.length)];
+                    const equipmentName = `${category}-${String(i).padStart(3, '0')}`;
+                    const isAvailable = Math.random() > 0.5; // 半分の確率で貸出中
+                    let loanedToUserId = '';
+                    let loanedToUserName = '';
+                    let loanDate = '';
+
+                    if (!isAvailable && dummyUsers.length > 0) {
+                        const randomUser = dummyUsers[Math.floor(Math.random() * dummyUsers.length)];
+                        loanedToUserId = randomUser.id;
+                        loanedToUserName = randomUser.name;
+                        const date = new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000); // 30日以内のランダムな日付
+                        loanDate = date.toISOString().split('T')[0]; // YYYY-MM-DD形式
+                    }
+
+                    await addDoc(equipmentCollectionRef, {
+                        name: equipmentName,
+                        status: isAvailable ? '利用可能' : '貸出中',
+                        loanedToUserId: loanedToUserId,
+                        loanedToUserName: loanedToUserName,
+                        loanDate: loanDate,
+                        isDeleted: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                }
+                console.log("100件のダミー機器データが生成されました。");
+                loadingIndicator.classList.add('hidden');
+            } else {
+                console.log("Firestoreにデータが既に存在するため、ダミーデータの生成をスキップしました。");
+                loadingIndicator.classList.add('hidden');
+            }
+        };
+
+        // --- タブ切り替え機能 ---
+        const activateTab = (tabButton, tabContent) => {
+            // すべてのタブボタンとコンテンツを非アクティブ化
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // クリックされたタブをアクティブ化
+            tabButton.classList.add('active');
+            tabContent.classList.add('active');
+
+            // 各タブのコンテンツをレンダリング
+            if (tabContent.id === 'contentLoanList') {
+                renderEquipmentList();
+            } else if (tabContent.id === 'contentEquipmentManagement') {
+                renderEquipmentManagement();
+            } else if (tabContent.id === 'contentUserManagement') {
+                renderUserManagement();
+            }
+        };
+
+        const renderCurrentTabContent = () => {
+            const activeTabButton = document.querySelector('.tab-button.active');
+            const activeTabContent = document.querySelector('.tab-content.active');
+            if (activeTabButton && activeTabContent) {
+                activateTab(activeTabButton, activeTabContent);
+            } else {
+                // デフォルトで貸出リストを表示
+                activateTab(tabLoanList, contentLoanList);
+            }
+        };
+
+        // --- 貸出リストのレンダリング (onSnapshotでリアルタイム更新) ---
+        const renderEquipmentList = () => {
+            if (!db || !userId || !isAuthReady) {
+                console.warn("FirestoreまたはユーザーIDが利用できません。貸出リストのレンダリングをスキップします。");
+                return;
+            }
+
+            const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
+            const q = query(equipmentCollectionRef, where('isDeleted', '==', false)); // 論理削除されていないもののみ表示
+
+            loadingIndicator.classList.remove('hidden');
+
+            onSnapshot(q, (snapshot) => {
+                loadingIndicator.classList.add('hidden');
+                let equipments = [];
+                snapshot.forEach((doc) => {
+                    equipments.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 検索フィルタリング
+                const searchTerm = searchInput.value.toLowerCase();
+                const filteredEquipments = equipments.filter(equipment =>
+                    equipment.name.toLowerCase().includes(searchTerm)
+                );
+
+                equipmentListDiv.innerHTML = ''; // リストをクリア
+
+                if (filteredEquipments.length === 0) {
+                    equipmentListDiv.innerHTML = '<p class="text-center text-gray-500 col-span-full">該当する機器は見つかりませんでした。</p>';
+                    return;
+                }
+
+                filteredEquipments.forEach(equipment => {
+                    const statusClass = equipment.status === '利用可能' ? 'status-available' : 'status-on-loan';
+                    const buttonText = equipment.status === '利用可能' ? '貸し出す' : '返却する';
+                    const buttonColorClass = equipment.status === '利用可能' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700';
+
+                    const equipmentCard = document.createElement('div');
+                    equipmentCard.className = `p-4 border border-gray-200 rounded-lg shadow-sm flex flex-col ${statusClass}`;
+                    equipmentCard.innerHTML = `
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">${equipment.name}</h3>
+                        <p class="text-sm text-gray-700 mb-1">状態: <span class="font-medium">${equipment.status}</span></p>
+                        ${equipment.loanedToUserName ? `<p class="text-sm text-gray-700 mb-1">貸出者: <span class="font-medium">${equipment.loanedToUserName}</span></p>` : ''}
+                        ${equipment.loanDate ? `<p class="text-sm text-gray-700 mb-3">貸出日: <span class="font-medium">${equipment.loanDate}</span></p>` : ''}
+                        <button data-id="${equipment.id}" data-status="${equipment.status}"
+                                class="mt-auto py-2 px-4 rounded-lg text-white font-bold transition duration-200 ${buttonColorClass} lend-return-button">
+                            ${buttonText}
+                        </button>
+                    `;
+                    equipmentListDiv.appendChild(equipmentCard);
+                });
+
+                // ボタンにイベントリスナーを追加
+                document.querySelectorAll('.lend-return-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const equipmentId = e.target.dataset.id;
+                        const status = e.target.dataset.status;
+
+                        if (status === '利用可能') {
+                            showLoanModal('lend', equipmentId);
+                        } else {
+                            showLoanModal('return', equipmentId);
+                        }
+                    });
+                });
+            }, (error) => {
+                console.error("機器リストの取得中にエラーが発生しました:", error);
+                showMessageModal("エラー", "貸出リストの読み込みに失敗しました。");
+            });
+        };
+
+        // --- 機器管理リストのレンダリング (onSnapshotでリアルタイム更新) ---
+        const renderEquipmentManagement = () => {
+            if (!db || !userId || !isAuthReady) {
+                console.warn("FirestoreまたはユーザーIDが利用できません。機器管理リストのレンダリングをスキップします。");
+                return;
+            }
+
+            const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
+            const q = query(equipmentCollectionRef); // 論理削除されたものも管理画面では表示
+
+            loadingIndicator.classList.remove('hidden');
+
+            onSnapshot(q, (snapshot) => {
+                loadingIndicator.classList.add('hidden');
+                let equipments = [];
+                snapshot.forEach((doc) => {
+                    equipments.push({ id: doc.id, ...doc.data() });
+                });
+
+                equipmentManagementListDiv.innerHTML = `
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr>
+                                <th class="py-3 px-4 text-left text-gray-600">機器名</th>
+                                <th class="py-3 px-4 text-left text-gray-600">状態</th>
+                                <th class="py-3 px-4 text-left text-gray-600">貸出者</th>
+                                <th class="py-3 px-4 text-left text-gray-600">貸出日</th>
+                                <th class="py-3 px-4 text-left text-gray-600">削除済み</th>
+                                <th class="py-3 px-4 text-left text-gray-600">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="equipmentManagementTableBody">
+                        </tbody>
+                    </table>
+                `;
+                const tableBody = document.getElementById('equipmentManagementTableBody');
+
+                if (equipments.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-4">機器が登録されていません。</td></tr>';
+                    return;
+                }
+
+                equipments.forEach(equipment => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-2 px-4">${equipment.name}</td>
+                        <td class="py-2 px-4">${equipment.status}</td>
+                        <td class="py-2 px-4">${equipment.loanedToUserName || '-'}</td>
+                        <td class="py-2 px-4">${equipment.loanDate || '-'}</td>
+                        <td class="py-2 px-4">${equipment.isDeleted ? 'はい' : 'いいえ'}</td>
+                        <td class="py-2 px-4">
+                            <button data-id="${equipment.id}" class="bg-yellow-500 hover:bg-yellow-600 text-white py-1 px-3 rounded-lg text-sm edit-equipment-button mr-2">編集</button>
+                            <button data-id="${equipment.id}" data-deleted="${equipment.isDeleted}" class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-lg text-sm delete-equipment-button">
+                                ${equipment.isDeleted ? '復元' : '削除'}
+                            </button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                // イベントリスナーを追加
+                document.querySelectorAll('.edit-equipment-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const equipmentId = e.target.dataset.id;
+                        editEquipment(equipmentId);
+                    });
+                });
+                document.querySelectorAll('.delete-equipment-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const equipmentId = e.target.dataset.id;
+                        const isDeleted = e.target.dataset.deleted === 'true';
+                        softDeleteEquipment(equipmentId, isDeleted);
+                    });
+                });
+            }, (error) => {
+                console.error("機器管理リストの取得中にエラーが発生しました:", error);
+                showMessageModal("エラー", "機器管理リストの読み込みに失敗しました。");
+            });
+        };
+
+        // --- ユーザー管理リストのレンダリング (onSnapshotでリアルタイム更新) ---
+        const renderUserManagement = () => {
+            if (!db || !userId || !isAuthReady) {
+                console.warn("FirestoreまたはユーザーIDが利用できません。ユーザー管理リストのレンダリングをスキップします。");
+                return;
+            }
+
+            const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
+            const q = query(usersCollectionRef);
+
+            loadingIndicator.classList.remove('hidden');
+
+            onSnapshot(q, (snapshot) => {
+                loadingIndicator.classList.add('hidden');
+                allUsers = []; // 全ユーザーデータを更新
+                snapshot.forEach((doc) => {
+                    allUsers.push({ id: doc.id, ...doc.data() });
+                });
+
+                userManagementListDiv.innerHTML = `
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr>
+                                <th class="py-3 px-4 text-left text-gray-600">ユーザー名</th>
+                                <th class="py-3 px-4 text-left text-gray-600">連絡先</th>
+                                <th class="py-3 px-4 text-left text-gray-600">削除済み</th>
+                                <th class="py-3 px-4 text-left text-gray-600">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userManagementTableBody">
+                        </tbody>
+                    </table>
+                `;
+                const tableBody = document.getElementById('userManagementTableBody');
+
+                if (allUsers.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-4">ユーザーが登録されていません。</td></tr>';
+                    return;
+                }
+
+                allUsers.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-2 px-4">${user.name}</td>
+                        <td class="py-2 px-4">${user.contactInfo || '-'}</td>
+                        <td class="py-2 px-4">${user.isDeleted ? 'はい' : 'いいえ'}</td>
+                        <td class="py-2 px-4">
+                            <button data-id="${user.id}" class="bg-yellow-500 hover:bg-yellow-600 text-white py-1 px-3 rounded-lg text-sm edit-user-button mr-2">編集</button>
+                            <button data-id="${user.id}" data-deleted="${user.isDeleted}" class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-lg text-sm delete-user-button">
+                                ${user.isDeleted ? '復元' : '削除'}
+                            </button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                // イベントリスナーを追加
+                document.querySelectorAll('.edit-user-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const userId = e.target.dataset.id;
+                        editUser(userId);
+                    });
+                });
+                document.querySelectorAll('.delete-user-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const userId = e.target.dataset.id;
+                        const isDeleted = e.target.dataset.deleted === 'true';
+                        softDeleteUser(userId, isDeleted);
+                    });
+                });
+            }, (error) => {
+                console.error("ユーザー管理リストの取得中にエラーが発生しました:", error);
+                showMessageModal("エラー", "ユーザー管理リストの読み込みに失敗しました。");
+            });
+        };
+
+        // --- 貸出/返却モーダル表示 ---
+        const showLoanModal = async (action, equipmentId) => {
+            currentAction = action;
+            currentEquipmentId = equipmentId;
+            newBorrowerNameInput.value = ''; // 新しい貸出者名入力欄をクリア
+
+            // ユーザー選択ドロップダウンを更新
+            borrowerSelect.innerHTML = '<option value="">-- ユーザーを選択 --</option>';
+            allUsers.filter(user => !user.isDeleted).forEach(user => { // 削除されていないユーザーのみ
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.name;
+                borrowerSelect.appendChild(option);
+            });
+
+            if (action === 'lend') {
+                loanModalTitle.textContent = '機器の貸出';
+                loanModalMessage.textContent = 'この機器を貸し出しますか？貸出者を選択するか、新しい貸出者名を入力してください。';
+                borrowerSelect.value = ''; // 選択をリセット
+                newBorrowerNameInput.classList.remove('hidden');
+                borrowerSelect.classList.remove('hidden');
+                confirmLoanModalButton.textContent = '貸し出す';
+                confirmLoanModalButton.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200';
+            } else {
+                loanModalTitle.textContent = '機器の返却';
+                loanModalMessage.textContent = 'この機器を返却しますか？貸出者情報は自動的にクリアされます。';
+                borrowerSelect.classList.add('hidden'); // 返却時は貸出者選択不要
+                newBorrowerNameInput.classList.add('hidden'); // 返却時は新しい貸出者名入力不要
+                confirmLoanModalButton.textContent = '返却する';
+                confirmLoanModalButton.className = 'bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200';
+            }
+            loanModal.style.display = 'flex';
+        };
+
+        // --- モーダルを閉じる汎用関数 ---
+        const closeModals = () => {
+            loanModal.style.display = 'none';
+            equipmentFormModal.style.display = 'none';
+            userFormModal.style.display = 'none';
+            messageModal.style.display = 'none';
+            currentEquipmentId = null;
+            currentUserId = null;
+            currentAction = null;
+        };
+
+        // --- 貸出処理 ---
+        const lendEquipment = async (equipmentId, selectedUserId, newUserName) => {
+            if (!db || !userId) {
+                console.error("FirestoreまたはユーザーIDが利用できません。貸出処理をスキップします。");
+                return;
+            }
+
+            let finalLoanedUserId = selectedUserId;
+            let finalLoanedUserName = '';
+
+            if (selectedUserId) {
+                // 既存ユーザーが選択された場合
+                const selectedUser = allUsers.find(u => u.id === selectedUserId);
+                if (selectedUser) {
+                    finalLoanedUserName = selectedUser.name;
+                }
+            } else if (newUserName.trim()) {
+                // 新しいユーザー名が入力された場合、ユーザーを新規作成
+                try {
+                    const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
+                    const newUserDocRef = await addDoc(usersCollectionRef, {
+                        name: newUserName.trim(),
+                        contactInfo: '', // 新規作成時は空
+                        isDeleted: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    finalLoanedUserId = newUserDocRef.id;
+                    finalLoanedUserName = newUserName.trim();
+                    showMessageModal("成功", `新しいユーザー「${newUserName.trim()}」が登録されました。`);
+                } catch (error) {
+                    console.error("新しいユーザーの登録中にエラーが発生しました:", error);
+                    showMessageModal("エラー", "新しいユーザーの登録に失敗しました。");
+                    return;
+                }
+            } else {
+                showMessageModal("入力エラー", "貸出者を選択するか、新しい貸出者名を入力してください。");
+                return;
+            }
+
+            const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, equipmentId);
+            try {
+                await updateDoc(equipmentRef, {
+                    status: '貸出中',
+                    loanedToUserId: finalLoanedUserId,
+                    loanedToUserName: finalLoanedUserName,
+                    loanDate: new Date().toISOString().split('T')[0],
+                    updatedAt: new Date()
+                });
+                console.log(`機器 ${equipmentId} を ${finalLoanedUserName} に貸し出しました。`);
+                showMessageModal("貸出完了", `機器「${equipmentId}」を「${finalLoanedUserName}」に貸し出しました。`);
+                closeModals();
+            } catch (error) {
+                console.error("機器の貸出中にエラーが発生しました:", error);
+                showMessageModal("エラー", "貸出処理に失敗しました。");
+            }
+        };
+
+        // --- 返却処理 ---
+        const returnEquipment = async (equipmentId) => {
+            if (!db || !userId) {
+                console.error("FirestoreまたはユーザーIDが利用できません。返却処理をスキップします。");
+                return;
+            }
+
+            const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, equipmentId);
+            try {
+                await updateDoc(equipmentRef, {
+                    status: '利用可能',
+                    loanedToUserId: '',
+                    loanedToUserName: '',
+                    loanDate: '',
+                    updatedAt: new Date()
+                });
+                console.log(`機器 ${equipmentId} を返却しました。`);
+                showMessageModal("返却完了", `機器「${equipmentId}」を返却しました。`);
+                closeModals();
+            } catch (error) {
+                console.error("機器の返却中にエラーが発生しました:", error);
+                showMessageModal("エラー", "返却処理に失敗しました。");
+            }
+        };
+
+        // --- 機器の追加/編集モーダル表示 ---
+        const showEquipmentFormModal = (equipment = null) => {
+            currentEquipmentId = equipment ? equipment.id : null;
+            equipmentFormModalTitle.textContent = equipment ? '機器の編集' : '新しい機器を追加';
+            equipmentNameInput.value = equipment ? equipment.name : '';
+            equipmentFormModal.style.display = 'flex';
+        };
+
+        // --- 機器の追加/更新 ---
+        const saveEquipment = async (e) => {
+            e.preventDefault();
+            if (!db || !userId) {
+                console.error("FirestoreまたはユーザーIDが利用できません。機器の保存をスキップします。");
+                return;
+            }
+
+            const equipmentName = equipmentNameInput.value.trim();
+            if (!equipmentName) {
+                showMessageModal("入力エラー", "機器名を入力してください。");
+                return;
+            }
+
+            const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
+            try {
+                if (currentEquipmentId) {
+                    // 更新
+                    const equipmentRef = doc(equipmentCollectionRef, currentEquipmentId);
+                    await updateDoc(equipmentRef, {
+                        name: equipmentName,
+                        updatedAt: new Date()
+                    });
+                    console.log(`機器 ${currentEquipmentId} を更新しました。`);
+                    showMessageModal("更新完了", "機器情報を更新しました。");
+                } else {
+                    // 新規追加
+                    await addDoc(equipmentCollectionRef, {
+                        name: equipmentName,
+                        status: '利用可能',
+                        loanedToUserId: '',
+                        loanedToUserName: '',
+                        loanDate: '',
+                        isDeleted: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    console.log(`新しい機器「${equipmentName}」を追加しました。`);
+                    showMessageModal("追加完了", `新しい機器「${equipmentName}」を追加しました。`);
+                }
+                closeModals();
+            } catch (error) {
+                console.error("機器の保存中にエラーが発生しました:", error);
+                showMessageModal("エラー", "機器の保存に失敗しました。");
+            }
+        };
+
+        // --- 機器の編集データ読み込み ---
+        const editEquipment = async (equipmentId) => {
+            if (!db || !userId) return;
+            const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, equipmentId);
+            const equipmentSnap = await getDoc(equipmentRef);
+            if (equipmentSnap.exists()) {
+                showEquipmentFormModal({ id: equipmentSnap.id, ...equipmentSnap.data() });
+            } else {
+                showMessageModal("エラー", "機器が見つかりませんでした。");
+            }
+        };
+
+        // --- 機器の論理削除/復元 ---
+        const softDeleteEquipment = async (equipmentId, isCurrentlyDeleted) => {
+            if (!db || !userId) return;
+            const confirmMessage = isCurrentlyDeleted ? 'この機器を復元しますか？' : 'この機器を削除しますか？（貸出中の場合は返却されます）';
+            // alert() の代わりにカスタムモーダルを使用
+            showMessageModal("確認", confirmMessage);
+            document.getElementById('closeMessageModalButton').onclick = async () => {
+                closeModals(); // モーダルを閉じる
+                // ここで実際に処理を実行
+                const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, equipmentId);
+                try {
+                    const updateData = {
+                        isDeleted: !isCurrentlyDeleted,
+                        updatedAt: new Date()
+                    };
+                    // 削除する場合、貸出情報をクリア
+                    if (!isCurrentlyDeleted) {
+                        updateData.status = '利用可能';
+                        updateData.loanedToUserId = '';
+                        updateData.loanedToUserName = '';
+                        updateData.loanDate = '';
+                    }
+                    await updateDoc(equipmentRef, updateData);
+                    showMessageModal("操作完了", isCurrentlyDeleted ? "機器を復元しました。" : "機器を削除しました。");
+                } catch (error) {
+                    console.error("機器の削除/復元中にエラーが発生しました:", error);
+                    showMessageModal("エラー", "機器の削除/復元に失敗しました。");
+                }
+            };
+        };
+
+        // --- ユーザーの追加/編集モーダル表示 ---
+        const showUserFormModal = (user = null) => {
+            currentUserId = user ? user.id : null;
+            userFormModalTitle.textContent = user ? 'ユーザーの編集' : '新しいユーザーを追加';
+            userNameInput.value = user ? user.name : '';
+            userContactInput.value = user ? user.contactInfo : '';
+            userFormModal.style.display = 'flex';
+        };
+
+        // --- ユーザーの追加/更新 ---
+        const saveUser = async (e) => {
+            e.preventDefault();
+            if (!db || !userId) {
+                console.error("FirestoreまたはユーザーIDが利用できません。ユーザーの保存をスキップします。");
+                return;
+            }
+
+            const userName = userNameInput.value.trim();
+            const userContact = userContactInput.value.trim();
+            if (!userName) {
+                showMessageModal("入力エラー", "ユーザー名を入力してください。");
+                return;
+            }
+
+            const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
+            try {
+                if (currentUserId) {
+                    // 更新
+                    const userRef = doc(usersCollectionRef, currentUserId);
+                    await updateDoc(userRef, {
+                        name: userName,
+                        contactInfo: userContact,
+                        updatedAt: new Date()
+                    });
+                    console.log(`ユーザー ${currentUserId} を更新しました。`);
+                    showMessageModal("更新完了", "ユーザー情報を更新しました。");
+                } else {
+                    // 新規追加
+                    await addDoc(usersCollectionRef, {
+                        name: userName,
+                        contactInfo: userContact,
+                        isDeleted: false,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    console.log(`新しいユーザー「${userName}」を追加しました。`);
+                    showMessageModal("追加完了", `新しいユーザー「${userName}」を追加しました。`);
+                }
+                closeModals();
+            } catch (error) {
+                console.error("ユーザーの保存中にエラーが発生しました:", error);
+                showMessageModal("エラー", "ユーザーの保存に失敗しました。");
+            }
+        };
+
+        // --- ユーザーの編集データ読み込み ---
+        const editUser = async (userId) => {
+            if (!db || !userId) return;
+            const userRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                showUserFormModal({ id: userSnap.id, ...userSnap.data() });
+            } else {
+                showMessageModal("エラー", "ユーザーが見つかりませんでした。");
+            }
+        };
+
+        // --- ユーザーの論理削除/復元 ---
+        const softDeleteUser = async (userIdToDelete, isCurrentlyDeleted) => {
+            if (!db || !userId) return;
+            const confirmMessage = isCurrentlyDeleted ? 'このユーザーを復元しますか？' : 'このユーザーを削除しますか？（貸出中の機器がある場合、その機器は返却されます）';
+            // alert() の代わりにカスタムモーダルを使用
+            showMessageModal("確認", confirmMessage);
+            document.getElementById('closeMessageModalButton').onclick = async () => {
+                closeModals(); // モーダルを閉じる
+                // ここで実際に処理を実行
+                const userRef = doc(db, `artifacts/${appId}/public/data/users`, userIdToDelete);
+                try {
+                    await updateDoc(userRef, {
+                        isDeleted: !isCurrentlyDeleted,
+                        updatedAt: new Date()
+                    });
+
+                    // ユーザーが削除された場合、そのユーザーが貸出中の機器を返却状態にする
+                    if (!isCurrentlyDeleted) {
+                        const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
+                        const q = query(equipmentCollectionRef, where('loanedToUserId', '==', userIdToDelete));
+                        const querySnapshot = await getDocs(q);
+
+                        const batchUpdates = [];
+                        querySnapshot.forEach(equipmentDoc => {
+                            batchUpdates.push(updateDoc(doc(equipmentCollectionRef, equipmentDoc.id), {
+                                status: '利用可能',
+                                loanedToUserId: '',
+                                loanedToUserName: '',
+                                loanDate: '',
+                                updatedAt: new Date()
+                            }));
+                        });
+                        await Promise.all(batchUpdates);
+                    }
+                    showMessageModal("操作完了", isCurrentlyDeleted ? "ユーザーを復元しました。" : "ユーザーを削除しました。");
+                } catch (error) {
+                    console.error("ユーザーの削除/復元中にエラーが発生しました:", error);
+                    showMessageModal("エラー", "ユーザーの削除/復元に失敗しました。");
+                }
+            };
+        };
+
+        // --- カスタムメッセージモーダル表示 ---
+        const showMessageModal = (title, message) => {
+            messageModalTitle.textContent = title;
+            messageModalText.textContent = message;
+            messageModal.style.display = 'flex';
+        };
+
+        // --- イベントリスナー ---
+        // タブボタン
+        tabLoanList.addEventListener('click', () => activateTab(tabLoanList, contentLoanList));
+        tabEquipmentManagement.addEventListener('click', () => activateTab(tabEquipmentManagement, contentEquipmentManagement));
+        tabUserManagement.addEventListener('click', () => activateTab(tabUserManagement, contentUserManagement));
+
+        // 貸出リスト検索
+        searchInput.addEventListener('input', renderEquipmentList);
+
+        // 機器管理ボタン
+        addEquipmentButton.addEventListener('click', () => showEquipmentFormModal());
+        equipmentForm.addEventListener('submit', saveEquipment);
+        cancelEquipmentFormButton.addEventListener('click', closeModals);
+
+        // ユーザー管理ボタン
+        addUserButton.addEventListener('click', () => showUserFormModal());
+        userForm.addEventListener('submit', saveUser);
+        cancelUserFormButton.addEventListener('click', closeModals);
+
+        // 貸出モーダルボタン
+        confirmLoanModalButton.addEventListener('click', () => {
+            if (currentAction === 'lend') {
+                const selectedUserId = borrowerSelect.value;
+                const newUserName = newBorrowerNameInput.value;
+                lendEquipment(currentEquipmentId, selectedUserId, newUserName);
+            } else if (currentAction === 'return') {
+                returnEquipment(currentEquipmentId);
+            }
+        });
+        cancelLoanModalButton.addEventListener('click', closeModals);
+
+        // すべてのモーダルの閉じるボタン
+        document.querySelectorAll('.close-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                closeModals();
+            });
+        });
+        // モーダルの外側をクリックで閉じる
+        window.addEventListener('click', (event) => {
+            if (event.target === loanModal || event.target === equipmentFormModal || event.target === userFormModal || event.target === messageModal) {
+                closeModals();
+            }
+        });
+
+        // カスタムメッセージモーダルを閉じる
+        closeMessageModalButton.addEventListener('click', closeModals);
+
+        // アプリケーションの開始
+        initializeFirebase();
+    </script>
+</body>
+</html>
