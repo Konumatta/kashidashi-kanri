@@ -1,0 +1,30 @@
+# Node.js
+node_modules/
+npm-debug.log
+.env
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+*.env # 環境変数ファイル（例: .env.local）
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+*.stackdump
+
+# IDEs
+.idea/ # IntelliJ IDEA
+.vscode/ # VS Code
+*.iml # IntelliJ IDEA
+.project # Eclipse
+.classpath # Eclipse
+.settings/ # Eclipse
+
+# Build artifacts (if you ever add a build step)
+dist/
+build/
