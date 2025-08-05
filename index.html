@@ -325,7 +325,8 @@
         let userId = null; // Firebase AuthのUID
         let userName = null; // ログインユーザーの表示名
         let isAuthReady = false;
-        let allUsers = []; // 全ユーザーデータを保持
+        let allUsers = [];
+        let allEquipments = []; // 全機器データを保持
 
         // --- UI要素の取得 ---
         const userIdDisplay = document.getElementById('userIdDisplay');
@@ -390,7 +391,6 @@
             const usersSnapshot = await getDocs(query(usersCollectionRef));
             const equipmentSnapshot = await getDocs(query(equipmentCollectionRef));
 
-            // データが空の場合のみ生成
             if (usersSnapshot.empty && equipmentSnapshot.empty) {
                 loadingIndicator.textContent = "初回セットアップ中: ダミーデータを生成しています...";
                 loadingIndicator.classList.remove('hidden');
@@ -411,21 +411,15 @@
                 const batch = writeBatch(db);
                 const createdUsers = [];
 
-                // ダミーユーザーを生成
                 for (const userData of dummyUsersData) {
-                    const userDocRef = doc(usersCollectionRef); // 自動IDを生成
+                    const userDocRef = doc(usersCollectionRef);
                     batch.set(userDocRef, {
-                        name: userData.name,
-                        email: userData.email,
-                        isDeleted: false,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
+                        name: userData.name, email: userData.email, isDeleted: false,
+                        createdAt: new Date(), updatedAt: new Date()
                     });
                     createdUsers.push({ id: userDocRef.id, name: userData.name });
                 }
-                console.log(`${createdUsers.length}件のダミーユーザーを生成しました。`);
 
-                // ダミー機器を生成
                 const categories = ['PC', 'プロジェクター', 'カメラ', 'マイク', 'モニター', 'タブレット', 'プリンター', 'スキャナー', 'ルーター', 'キーボード'];
                 for (let i = 1; i <= 50; i++) {
                     const category = categories[Math.floor(Math.random() * categories.length)];
@@ -445,24 +439,13 @@
 
                     const equipmentDocRef = doc(equipmentCollectionRef);
                     batch.set(equipmentDocRef, {
-                        name: equipmentName,
-                        status: isAvailable ? 'utilizable' : 'onLoan',
-                        loanedToUserId: loanedToUserId,
-                        loanedToUserName: loanedToUserName,
-                        loanDate: loanDate,
-                        isDeleted: false,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
+                        name: equipmentName, status: isAvailable ? 'utilizable' : 'onLoan',
+                        loanedToUserId: loanedToUserId, loanedToUserName: loanedToUserName,
+                        loanDate: loanDate, isDeleted: false, createdAt: new Date(), updatedAt: new Date()
                     });
                 }
-                console.log("50件のダミー機器データを生成しました。");
-
                 await batch.commit();
-                console.log("ダミーデータの生成が完了しました。");
-                loadingIndicator.classList.add('hidden');
-            } else {
-                console.log("データが既に存在するため、ダミーデータの生成をスキップしました。");
-            }
+            } 
         };
 
         // --- Firebaseの初期化と認証 ---
@@ -479,17 +462,14 @@
                         userIdDisplay.textContent = `${userName} (${userId.substring(0, 8)}...)`;
                         signInButton.classList.add('hidden');
                         signOutButton.classList.remove('hidden');
-                        console.log("Firebase authenticated. User:", user.uid);
                         isAuthReady = true;
                         await generateDummyData();
                         renderCurrentTabContent(); 
                     } else {
-                        userId = null;
-                        userName = null;
+                        userId = null; userName = null; isAuthReady = false;
                         userIdDisplay.textContent = '未ログイン';
                         signInButton.classList.remove('hidden');
                         signOutButton.classList.add('hidden');
-                        console.log("User is signed out.");
                         document.querySelectorAll('.tab-content').forEach(el => el.innerHTML = '<p class="text-center text-gray-500 col-span-full">ログインして表示してください。</p>');
                         loadingIndicator.classList.add('hidden');
                     }
@@ -601,15 +581,15 @@
             
             onSnapshot(query(equipmentCollectionRef), (snapshot) => {
                 loadingIndicator.classList.add('hidden');
-                const equipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allEquipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 
-                equipmentManagementTableBody.innerHTML = ''; // テーブルの中身だけをクリア
-                if (equipments.length === 0) {
+                equipmentManagementTableBody.innerHTML = '';
+                if (allEquipments.length === 0) {
                     equipmentManagementTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-4">機器が登録されていません。</td></tr>';
                     return;
                 }
 
-                equipments.forEach(equipment => {
+                allEquipments.forEach(equipment => {
                     const row = document.createElement('tr');
                     row.className = equipment.isDeleted ? 'bg-gray-200 opacity-50' : '';
                     row.innerHTML = `
@@ -643,7 +623,7 @@
                 loadingIndicator.classList.add('hidden');
                 allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 
-                userManagementTableBody.innerHTML = ''; // テーブルの中身だけをクリア
+                userManagementTableBody.innerHTML = '';
                 if (allUsers.length === 0) {
                     userManagementTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-4">ユーザーが登録されていません。</td></tr>';
                     return;
@@ -777,6 +757,7 @@
                 if (currentEquipmentId) {
                     const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, currentEquipmentId);
                     await updateDoc(equipmentRef, { name: equipmentName, updatedAt: new Date() });
+                    closeModals();
                     showMessageModal("更新完了", "機器情報を更新しました。");
                 } else {
                     const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
@@ -785,9 +766,9 @@
                         loanedToUserName: '', loanDate: '', isDeleted: false,
                         createdAt: new Date(), updatedAt: new Date()
                     });
+                    closeModals();
                     showMessageModal("追加完了", `新しい機器「${equipmentName}」を追加しました。`);
                 }
-                closeModals();
             } catch (error) {
                 console.error("Save Equipment Error:", error);
                 showMessageModal("エラー", "機器の保存に失敗しました。");
@@ -828,15 +809,16 @@
                 if (currentUserId) {
                     const userRef = doc(usersCollectionRef, currentUserId);
                     await updateDoc(userRef, { name: userNameValue, email: userEmailValue, updatedAt: new Date() });
+                    closeModals();
                     showMessageModal("更新完了", "ユーザー情報を更新しました。");
                 } else {
                     await addDoc(usersCollectionRef, {
                         name: userNameValue, email: userEmailValue, isDeleted: false,
                         createdAt: new Date(), updatedAt: new Date()
                     });
+                    closeModals();
                     showMessageModal("追加完了", `新しいユーザー「${userNameValue}」を追加しました。`);
                 }
-                closeModals();
             } catch (error) {
                 console.error("Save User Error:", error);
                 showMessageModal("エラー", "ユーザーの保存に失敗しました。");
@@ -945,7 +927,7 @@
                 const { id, deleted } = target.dataset;
 
                 if (target.classList.contains('edit-equipment-button')) {
-                    const equipment = allUsers.find(eq => eq.id === id);
+                    const equipment = allEquipments.find(eq => eq.id === id);
                     showEquipmentFormModal(equipment);
                 } else if (target.classList.contains('delete-equipment-button')) {
                     showMessageModal("確認", `この機器を${deleted === 'true' ? '復元' : '削除'}しますか？`, () => {
