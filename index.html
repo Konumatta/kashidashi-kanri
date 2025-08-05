@@ -735,37 +735,55 @@
                 return;
             }
 
-            let finalLoanedUserId = selectedUserId;
+            const trimmedNewName = newUserName.trim();
+
+            // 入力チェック：選択と新規入力が同時に行われた場合はエラー
+            if (selectedUserId && trimmedNewName) {
+                showMessageModal("入力エラー", "貸出者の選択と、新しい貸出者名の入力は、どちらか一方のみにしてください。");
+                return;
+            }
+
+            let finalLoanedUserId = '';
             let finalLoanedUserName = '';
 
             // 貸出者情報の決定
-            if (selectedUserId) {
-                const selectedUser = allUsers.find(u => u.id === selectedUserId);
-                if (selectedUser) {
-                    finalLoanedUserName = selectedUser.name;
-                } else {
-                    showMessageModal("エラー", "選択されたユーザーが見つかりません。");
-                    return;
-                }
-            } else if (newUserName.trim()) {
+            if (trimmedNewName) {
+                // 新しいユーザー名が入力された場合
                 try {
                     const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
                     const newUserDocRef = await addDoc(usersCollectionRef, {
-                        name: newUserName.trim(),
+                        name: trimmedNewName,
                         contactInfo: '',
                         isDeleted: false,
                         createdAt: new Date(),
                         updatedAt: new Date()
                     });
                     finalLoanedUserId = newUserDocRef.id;
-                    finalLoanedUserName = newUserName.trim();
-                    // ここでメッセージを表示せず、最後の貸出完了メッセージに一本化する
+                    finalLoanedUserName = trimmedNewName;
                 } catch (error) {
                     console.error("新しいユーザーの登録中にエラーが発生しました:", error);
                     showMessageModal("エラー", "新しいユーザーの登録に失敗しました。");
                     return;
                 }
+            } else if (selectedUserId) {
+                // 既存ユーザーが選択された場合
+                if (selectedUserId === userId) {
+                    // ログイン中のユーザー自身が選択された場合
+                    finalLoanedUserId = userId;
+                    finalLoanedUserName = userName;
+                } else {
+                    // ドロップダウンから他のユーザーが選択された場合
+                    const selectedUser = allUsers.find(u => u.id === selectedUserId);
+                    if (selectedUser) {
+                        finalLoanedUserId = selectedUser.id;
+                        finalLoanedUserName = selectedUser.name;
+                    } else {
+                        showMessageModal("エラー", "選択されたユーザーが見つかりません。");
+                        return; // モーダルは閉じない
+                    }
+                }
             } else {
+                // 何も入力/選択されていない場合
                 showMessageModal("入力エラー", "貸出者を選択するか、新しい貸出者名を入力してください。");
                 return;
             }
@@ -780,8 +798,8 @@
                     loanDate: new Date().toISOString().split('T')[0],
                     updatedAt: new Date()
                 });
+                closeModals(); // 先にモーダルを閉じる
                 showMessageModal("貸出完了", `機器を「${finalLoanedUserName}」に貸し出しました。`);
-                closeModals(); // 正常に処理が完了したらモーダルを閉じる
             } catch (error) {
                 console.error("機器の貸出中にエラーが発生しました:", error);
                 showMessageModal("エラー", "貸出処理に失敗しました。");
