@@ -738,10 +738,14 @@
             let finalLoanedUserId = selectedUserId;
             let finalLoanedUserName = '';
 
+            // 貸出者情報の決定
             if (selectedUserId) {
                 const selectedUser = allUsers.find(u => u.id === selectedUserId);
                 if (selectedUser) {
                     finalLoanedUserName = selectedUser.name;
+                } else {
+                    showMessageModal("エラー", "選択されたユーザーが見つかりません。");
+                    return;
                 }
             } else if (newUserName.trim()) {
                 try {
@@ -755,7 +759,7 @@
                     });
                     finalLoanedUserId = newUserDocRef.id;
                     finalLoanedUserName = newUserName.trim();
-                    showMessageModal("成功", `新しいユーザー「${newUserName.trim()}」が登録されました。`);
+                    // ここでメッセージを表示せず、最後の貸出完了メッセージに一本化する
                 } catch (error) {
                     console.error("新しいユーザーの登録中にエラーが発生しました:", error);
                     showMessageModal("エラー", "新しいユーザーの登録に失敗しました。");
@@ -766,6 +770,7 @@
                 return;
             }
 
+            // 機器情報の更新
             const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, equipmentId);
             try {
                 await updateDoc(equipmentRef, {
@@ -776,7 +781,7 @@
                     updatedAt: new Date()
                 });
                 showMessageModal("貸出完了", `機器を「${finalLoanedUserName}」に貸し出しました。`);
-                closeModals();
+                closeModals(); // 正常に処理が完了したらモーダルを閉じる
             } catch (error) {
                 console.error("機器の貸出中にエラーが発生しました:", error);
                 showMessageModal("エラー", "貸出処理に失敗しました。");
@@ -798,8 +803,8 @@
                     loanDate: '',
                     updatedAt: new Date()
                 });
+                closeModals(); // モーダルを閉じる
                 showMessageModal("返却完了", "機器を返却しました。");
-                closeModals();
             } catch (error) {
                 console.error("機器の返却中にエラーが発生しました:", error);
                 showMessageModal("エラー", "返却処理に失敗しました。");
