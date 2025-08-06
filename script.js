@@ -373,7 +373,7 @@
             if (!db || !isAuthReady) return;
             const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
 
-            onSnapshot(query(usersCollectionRef), (snapshot) => {
+            onSnapshot(query(usersCollectionRef, orderBy('email', 'asc')), (snapshot) => {
                 loadingIndicator.classList.add('hidden');
                 allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 
