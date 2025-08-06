@@ -878,20 +878,18 @@
             messageModalTitle.textContent = title;
             messageModalText.textContent = message;
 
-            const newConfirmButton = messageModalConfirmButton.cloneNode(true);
-            messageModalConfirmButton.parentNode.replaceChild(newConfirmButton, messageModalConfirmButton);
-            
-            const newCancelButton = messageModalCancelButton.cloneNode(true);
-            messageModalCancelButton.parentNode.replaceChild(newCancelButton, messageModalCancelButton);
+            messageModalCancelButton.style.display = onConfirm ? 'inline-block' : 'none';
+            messageModalConfirmButton.textContent = onConfirm ? 'OK' : '閉じる';
 
-            newCancelButton.style.display = onConfirm ? 'inline-block' : 'none';
-            newConfirmButton.textContent = onConfirm ? 'OK' : '閉じる';
+            // 既存のイベントリスナーを削除（念のため）
+            messageModalConfirmButton.onclick = null;
+            messageModalCancelButton.onclick = null;
 
-            newConfirmButton.onclick = () => {
+            messageModalConfirmButton.onclick = () => {
                 closeModals();
                 if (onConfirm) onConfirm();
             };
-            newCancelButton.onclick = closeModals;
+            messageModalCancelButton.onclick = closeModals;
             
             messageModal.style.display = 'flex';
         };
