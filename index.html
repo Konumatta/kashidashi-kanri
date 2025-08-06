@@ -464,6 +464,15 @@
                         signOutButton.classList.remove('hidden');
                         isAuthReady = true;
                         await generateDummyData();
+                        
+                        // Add this new onSnapshot listener for allUsers
+                        const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
+                        onSnapshot(query(usersCollectionRef), (snapshot) => {
+                            allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        }, (error) => {
+                            console.error("Error fetching all users for global state:", error);
+                        });
+
                         renderCurrentTabContent(); 
                     } else {
                         userId = null; userName = null; isAuthReady = false;
