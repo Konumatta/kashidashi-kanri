@@ -485,6 +485,8 @@
             const provider = new GoogleAuthProvider();
             try {
                 await signInWithPopup(auth, provider);
+                // ログイン成功後にページをリロードして、表示を確実に更新する
+                location.reload();
             } catch (error) {
                 console.error("Google Sign-In Error:", error);
                 showMessageModal("サインインエラー", `Googleサインインに失敗しました: ${error.message}`);
