@@ -214,9 +214,12 @@
 
         <!-- Loan History Tab Content -->
         <div id="contentLoanHistory" class="tab-content">
-            <div class="mb-6">
+            <div class="mb-6 flex items-center space-x-4">
                 <input type="text" id="loanHistorySearchInput" placeholder="機器名または貸出者で検索..."
-                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                       class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="downloadLoanHistoryCsv" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                    CSVダウンロード
+                </button>
             </div>
             <div id="loanHistoryList">
                 <table class="min-w-full bg-white rounded-lg shadow-md">
@@ -394,6 +397,7 @@
         const prevLoanHistoryPageButton = document.getElementById('prevLoanHistoryPage');
         const nextLoanHistoryPageButton = document.getElementById('nextLoanHistoryPage');
         const loanHistoryPageInfo = document.getElementById('loanHistoryPageInfo');
+        const downloadLoanHistoryCsvButton = document.getElementById('downloadLoanHistoryCsv');
 
         // Modals
         const loanModal = document.getElementById('loanModal');
@@ -813,6 +817,37 @@
             }
         };
 
+        // --- 貸出履歴をCSVでダウンロード ---
+        const downloadLoanHistoryCsv = () => {
+            if (allLoanHistory.length === 0) {
+                showMessageModal("情報", "ダウンロードする貸出履歴がありません。");
+                return;
+            }
+
+            let csvContent = "機器名,貸出者,貸出日,返却日\n"; // CSVヘッダー
+
+            allLoanHistory.forEach(history => {
+                const equipmentName = `"${history.equipmentName.replace(/"/g, '""')}"`;
+                const userName = `"${history.userName.replace(/"/g, '""')}"`;
+                const loanDate = history.loanDate || '';
+                const returnDate = history.returnDate || '';
+                csvContent += `${equipmentName},${userName},${loanDate},${returnDate}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) { // HTML5 download attribute
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', '貸出履歴.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            showMessageModal("ダウンロード完了", "貸出履歴CSVのダウンロードを開始しました。");
+        };
+
         // --- 貸出/返却モーダル表示 ---
         const showLoanModal = async (action, equipmentId) => {
             currentAction = action;
@@ -1179,6 +1214,7 @@
             loanHistorySearchInput.addEventListener('input', () => renderLoanHistory());
             prevLoanHistoryPageButton.addEventListener('click', () => renderLoanHistory('prev'));
             nextLoanHistoryPageButton.addEventListener('click', () => renderLoanHistory('next'));
+            downloadLoanHistoryCsvButton.addEventListener('click', downloadLoanHistoryCsv);
         };
 
         // --- アプリケーションの開始 ---
