@@ -146,6 +146,7 @@
             <button id="tabLoanList" class="tab-button active">貸出リスト</button>
             <button id="tabEquipmentManagement" class="tab-button">機器管理</button>
             <button id="tabUserManagement" class="tab-button">ユーザー管理</button>
+            <button id="tabLoanHistory" class="tab-button">貸出履歴</button>
         </div>
 
         <!-- Loan List Tab Content -->
@@ -208,6 +209,34 @@
                         <!-- ユーザー管理リストがここに動的に挿入されます -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Loan History Tab Content -->
+        <div id="contentLoanHistory" class="tab-content">
+            <div class="mb-6">
+                <input type="text" id="loanHistorySearchInput" placeholder="機器名または貸出者で検索..."
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div id="loanHistoryList">
+                <table class="min-w-full bg-white rounded-lg shadow-md">
+                    <thead>
+                        <tr>
+                            <th class="py-3 px-4 text-left text-gray-600">機器名</th>
+                            <th class="py-3 px-4 text-left text-gray-600">貸出者</th>
+                            <th class="py-3 px-4 text-left text-gray-600">貸出日</th>
+                            <th class="py-3 px-4 text-left text-gray-600">返却日</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loanHistoryTableBody">
+                        <!-- 貸出履歴がここに動的に挿入されます -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex justify-between items-center mt-4">
+                <button id="prevLoanHistoryPage" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200" disabled>前へ</button>
+                <span id="loanHistoryPageInfo" class="text-gray-700"></span>
+                <button id="nextLoanHistoryPage" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">次へ</button>
             </div>
         </div>
 
@@ -328,6 +357,12 @@
         let isAuthReady = false;
         let allUsers = [];
         let allEquipments = []; // 全機器データを保持
+        let allLoanHistory = []; // 全貸出履歴データを保持
+        let lastVisible = null; // ページネーションの開始点
+        let firstVisible = null; // ページネーションの終了点 (前ページ用)
+        let currentPage = 1; // 現在のページ番号
+        const pageSize = 100; // 1ページあたりの表示件数
+        let queryHistory = []; // ページネーション履歴
 
         // --- UI要素の取得 ---
         const userIdDisplay = document.getElementById('userIdDisplay');
@@ -341,15 +376,24 @@
         const tabLoanList = document.getElementById('tabLoanList');
         const tabEquipmentManagement = document.getElementById('tabEquipmentManagement');
         const tabUserManagement = document.getElementById('tabUserManagement');
+        const tabLoanHistory = document.getElementById('tabLoanHistory');
         const contentLoanList = document.getElementById('contentLoanList');
         const contentEquipmentManagement = document.getElementById('contentEquipmentManagement');
         const contentUserManagement = document.getElementById('contentUserManagement');
+        const contentLoanHistory = document.getElementById('contentLoanHistory');
 
         // Management Tab Elements
         const addEquipmentButton = document.getElementById('addEquipmentButton');
         const equipmentManagementTableBody = document.getElementById('equipmentManagementTableBody');
         const addUserButton = document.getElementById('addUserButton');
         const userManagementTableBody = document.getElementById('userManagementTableBody');
+
+        // Loan History Elements
+        const loanHistorySearchInput = document.getElementById('loanHistorySearchInput');
+        const loanHistoryTableBody = document.getElementById('loanHistoryTableBody');
+        const prevLoanHistoryPageButton = document.getElementById('prevLoanHistoryPage');
+        const nextLoanHistoryPageButton = document.getElementById('nextLoanHistoryPage');
+        const loanHistoryPageInfo = document.getElementById('loanHistoryPageInfo');
 
         // Modals
         const loanModal = document.getElementById('loanModal');
@@ -539,6 +583,8 @@
                 renderEquipmentManagement();
             } else if (activeTabContent.id === 'contentUserManagement') {
                 renderUserManagement();
+            } else if (activeTabContent.id === 'contentLoanHistory') {
+                renderLoanHistory();
             }
         };
 
@@ -664,6 +710,101 @@
             });
         };
 
+        // --- 貸出履歴のレンダリング ---
+        const renderLoanHistory = async (direction = null) => {
+            if (!db || !isAuthReady) return;
+            loadingIndicator.classList.remove('hidden');
+
+            const loanHistoryCollectionRef = collection(db, `artifacts/${appId}/public/data/loan_history`);
+            let q = query(loanHistoryCollectionRef, orderBy('createdAt', 'desc'));
+
+            const searchTerm = loanHistorySearchInput.value.toLowerCase();
+            if (searchTerm) {
+                // 検索語がある場合は、Firestoreのクエリではなく、取得後にフィルタリング
+                // Firestoreのwhere句は部分一致検索やOR条件が複雑なため、ここではクライアントサイドで処理
+            }
+
+            if (direction === 'next' && lastVisible) {
+                q = query(q, startAfter(lastVisible));
+            } else if (direction === 'prev' && firstVisible) {
+                // 前のページに戻る場合は、逆順で取得して反転させる
+                q = query(loanHistoryCollectionRef, orderBy('createdAt', 'asc'), startAfter(firstVisible));
+            }
+
+            q = query(q, limit(pageSize + 1)); // 次のページがあるか確認するため+1件多く取得
+
+            try {
+                const snapshot = await getDocs(q);
+                loadingIndicator.classList.add('hidden');
+
+                let docs = snapshot.docs;
+                if (direction === 'prev') {
+                    docs = docs.reverse(); // 逆順で取得したものを元に戻す
+                }
+
+                let hasNextPage = false;
+                if (docs.length > pageSize) {
+                    hasNextPage = true;
+                    docs.pop(); // 余分に取得した1件を削除
+                }
+
+                if (direction === 'prev' && queryHistory.length > 1) {
+                    queryHistory.pop(); // 現在のページを削除
+                    const prevPageInfo = queryHistory[queryHistory.length - 1];
+                    lastVisible = prevPageInfo.lastVisible;
+                    firstVisible = prevPageInfo.firstVisible;
+                    currentPage = prevPageInfo.pageNumber;
+                } else if (direction === 'next') {
+                    queryHistory.push({ lastVisible: lastVisible, firstVisible: firstVisible, pageNumber: currentPage });
+                    currentPage++;
+                } else if (direction === null) { // 初回ロードまたは検索時
+                    currentPage = 1;
+                    queryHistory = [];
+                }
+
+                if (docs.length > 0) {
+                    firstVisible = docs[0];
+                    lastVisible = docs[docs.length - 1];
+                } else {
+                    firstVisible = null;
+                    lastVisible = null;
+                }
+
+                allLoanHistory = docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                const filteredHistory = allLoanHistory.filter(history => 
+                    history.equipmentName.toLowerCase().includes(searchTerm) ||
+                    history.userName.toLowerCase().includes(searchTerm)
+                );
+
+                loanHistoryTableBody.innerHTML = '';
+                if (filteredHistory.length === 0) {
+                    loanHistoryTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500 py-4">該当する貸出履歴は見つかりませんでした。</td></tr>';
+                }
+
+                filteredHistory.forEach(history => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="py-2 px-4">${history.equipmentName}</td>
+                        <td class="py-2 px-4">${history.userName}</td>
+                        <td class="py-2 px-4">${history.loanDate || '-'}</td>
+                        <td class="py-2 px-4">${history.returnDate || '-'}</td>
+                    `;
+                    loanHistoryTableBody.appendChild(row);
+                });
+
+                // ページネーションボタンの状態更新
+                prevLoanHistoryPageButton.disabled = currentPage === 1;
+                nextLoanHistoryPageButton.disabled = !hasNextPage;
+                loanHistoryPageInfo.textContent = `ページ ${currentPage}`;
+
+            } catch (error) {
+                console.error("Error fetching loan history:", error);
+                showMessageModal("エラー", "貸出履歴の読み込みに失敗しました。");
+                loadingIndicator.classList.add('hidden');
+            }
+        };
+
         // --- 貸出/返却モーダル表示 ---
         const showLoanModal = async (action, equipmentId) => {
             currentAction = action;
@@ -710,6 +851,8 @@
             if (!selectedUser) return showMessageModal("エラー", "選択されたユーザーが見つかりません。");
 
             const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, equipmentId);
+            const loanHistoryCollectionRef = collection(db, `artifacts/${appId}/public/data/loan_history`);
+
             try {
                 await updateDoc(equipmentRef, {
                     status: 'onLoan',
@@ -718,6 +861,20 @@
                     loanDate: new Date().toISOString().split('T')[0],
                     updatedAt: new Date()
                 });
+
+                // 貸出履歴を記録
+                await addDoc(loanHistoryCollectionRef, {
+                    equipmentId: equipmentId,
+                    equipmentName: allEquipments.find(eq => eq.id === equipmentId)?.name || '不明な機器',
+                    userId: selectedUser.id,
+                    userName: selectedUser.name,
+                    loanDate: new Date().toISOString().split('T')[0],
+                    returnDate: null, // 返却時はnull
+                    loanedByUserId: userId,
+                    loanedByUserName: userName,
+                    createdAt: new Date()
+                });
+
                 closeModals();
                 showMessageModal("貸出完了", `機器を「${selectedUser.name}」に貸し出しました。`);
             } catch (error) {
@@ -731,6 +888,8 @@
             if (!db || !userId) return showMessageModal("エラー", "ログインしていません。");
             
             const equipmentRef = doc(db, `artifacts/${appId}/public/data/equipment`, equipmentId);
+            const loanHistoryCollectionRef = collection(db, `artifacts/${appId}/public/data/loan_history`);
+
             try {
                 await updateDoc(equipmentRef, {
                     status: 'utilizable',
@@ -739,6 +898,40 @@
                     loanDate: '',
                     updatedAt: new Date()
                 });
+
+                // 該当する貸出履歴を検索し、返却日を更新
+                // 最新の貸出記録を特定するために、loanDateでソートして最新のものを取得
+                const q = query(loanHistoryCollectionRef,
+                    where('equipmentId', '==', equipmentId),
+                    where('returnDate', '==', null),
+                    orderBy('loanDate', 'desc'),
+                    limit(1)
+                );
+                const snapshot = await getDocs(q);
+
+                if (!snapshot.empty) {
+                    const loanDocRef = snapshot.docs[0].ref;
+                    await updateDoc(loanDocRef, {
+                        returnDate: new Date().toISOString().split('T')[0],
+                        updatedAt: new Date()
+                    });
+                } else {
+                    // 過去の貸出記録がない場合（例: ダミーデータで返却処理を行う場合など）
+                    // 新しい返却イベントとして記録
+                    const equipment = allEquipments.find(eq => eq.id === equipmentId);
+                    await addDoc(loanHistoryCollectionRef, {
+                        equipmentId: equipmentId,
+                        equipmentName: equipment?.name || '不明な機器',
+                        userId: equipment?.loanedToUserId || '不明',
+                        userName: equipment?.loanedToUserName || '不明',
+                        loanDate: equipment?.loanDate || '不明',
+                        returnDate: new Date().toISOString().split('T')[0],
+                        loanedByUserId: userId,
+                        loanedByUserName: userName,
+                        createdAt: new Date()
+                    });
+                }
+
                 closeModals();
                 showMessageModal("返却完了", "機器を返却しました。");
             } catch (error) {
@@ -974,6 +1167,10 @@
                     });
                 }
             });
+
+            loanHistorySearchInput.addEventListener('input', () => renderLoanHistory());
+            prevLoanHistoryPageButton.addEventListener('click', () => renderLoanHistory('prev'));
+            nextLoanHistoryPageButton.addEventListener('click', () => renderLoanHistory('next'));
         };
 
         // --- アプリケーションの開始 ---
