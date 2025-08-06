@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>貸出管理アプリ</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -865,11 +866,15 @@
                         console.log(`Batch update committed.`);
                     }
                 }
-                showMessageModal("操作完了", `${isRestoring ? "復元" : "削除"}しました。`);
+                setTimeout(() => {
+                    showMessageModal("操作完了", `${isRestoring ? "復元" : "削除"}しました。`);
+                }, 50); // Small delay, e.g., 50ms
                 console.log(`softDeleteRestore completed successfully for ${docId}`);
             } catch (error) {
                 console.error(`Error in softDeleteRestore for ${collectionName}:`, error);
-                showMessageModal("エラー", "操作に失敗しました。");
+                setTimeout(() => {
+                    showMessageModal("エラー", "操作に失敗しました。");
+                }, 50); // Small delay for error message too
             }
         };
 
