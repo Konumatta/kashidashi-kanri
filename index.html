@@ -518,6 +518,14 @@
                             console.error("Error fetching all users for global state:", error);
                         });
 
+                        // Add onSnapshot listener for allEquipments
+                        const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
+                        onSnapshot(query(equipmentCollectionRef), (snapshot) => {
+                            allEquipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        }, (error) => {
+                            console.error("Error fetching all equipments for global state:", error);
+                        });
+
                         renderCurrentTabContent(); 
                     } else {
                         userId = null; userName = null; isAuthReady = false;
