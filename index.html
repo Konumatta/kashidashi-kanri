@@ -681,7 +681,7 @@
                     option.textContent = user.id === userId ? `${user.name} (あなた)` : user.name;
                     borrowerSelect.appendChild(option);
                 });
-                borrowerSelect.value = userId; // 自分をデフォルトに
+                
             } else {
                 loanModalTitle.textContent = '機器の返却';
                 loanModalMessage.textContent = 'この機器を返却しますか？';
@@ -838,6 +838,7 @@
 
         // --- 論理削除/復元 汎用関数 ---
         const softDeleteRestore = async (collectionName, docId, isDeleted) => {
+            console.log(`softDeleteRestore called for collection: ${collectionName}, docId: ${docId}, isDeleted: ${isDeleted}`);
             const isRestoring = isDeleted;
             const docRef = doc(db, `artifacts/${appId}/public/data/${collectionName}`, docId);
             const updates = { isDeleted: !isDeleted, updatedAt: new Date() };
@@ -847,17 +848,25 @@
             }
 
             try {
+                console.log(`Attempting to update document: ${docId} with updates:`, updates);
                 await updateDoc(docRef, updates);
+                console.log(`Document ${docId} updated successfully.`);
                 if (collectionName === 'users' && !isRestoring) {
+                    console.log(`User deleted, checking for loaned equipment for user: ${docId}`);
                     const q = query(collection(db, `artifacts/${appId}/public/data/equipment`), where('loanedToUserId', '==', docId));
                     const snapshot = await getDocs(q);
                     const batch = writeBatch(db);
                     snapshot.forEach(doc => {
                         batch.update(doc.ref, { status: 'utilizable', loanedToUserId: '', loanedToUserName: '', loanDate: '', updatedAt: new Date() });
                     });
-                    await batch.commit();
+                    if (!snapshot.empty) {
+                        console.log(`Committing batch update for ${snapshot.size} equipments.`);
+                        await batch.commit();
+                        console.log(`Batch update committed.`);
+                    }
                 }
                 showMessageModal("操作完了", `${isRestoring ? "復元" : "削除"}しました。`);
+                console.log(`softDeleteRestore completed successfully for ${docId}`);
             } catch (error) {
                 console.error(`Error in softDeleteRestore for ${collectionName}:`, error);
                 showMessageModal("エラー", "操作に失敗しました。");
@@ -956,8 +965,9 @@
                     const user = allUsers.find(u => u.id === id);
                     showUserFormModal(user);
                 } else if (target.classList.contains('delete-user-button')) {
+                    console.log(`Delete button clicked for user ID: ${id}, isDeleted: ${deleted}`);
                      showMessageModal("確認", `このユーザーを${deleted === 'true' ? '復元' : '削除'}しますか？`, () => {
-                        softDeleteRestore('users', id, deleted === 'true');
+                        softDeleteRestore('users', id, Boolean(deleted === 'true'));
                     });
                 }
             });
