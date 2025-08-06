@@ -1,223 +1,246 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>貸出管理アプリ</title>
-    <link rel="icon" href="../favicon.ico" type="image/x-icon">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>貸出管理アプリ</title>
+  <link rel="icon" href="../favicon.ico" type="image/x-icon">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <div class="container">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">貸出管理アプリ</h1>
-        <div class="flex flex-col sm:flex-row justify-between items-center mb-4">
-            <p class="text-sm text-gray-600 mb-2 sm:mb-0">
-                ログインユーザー: <span id="userIdDisplay" class="font-semibold text-blue-600 break-all">未ログイン</span>
-            </p>
-            <div id="authButtons" class="flex space-x-2">
-                <button id="signInButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                    Googleでサインイン
-                </button>
-                <button id="signOutButton" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 hidden">
-                    ログアウト
-                </button>
-            </div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="flex border-b border-gray-300 mb-6">
-            <button id="tabLoanList" class="tab-button active">貸出リスト</button>
-            <button id="tabEquipmentManagement" class="tab-button">機器管理</button>
-            <button id="tabUserManagement" class="tab-button">ユーザー管理</button>
-            <button id="tabLoanHistory" class="tab-button">貸出履歴</button>
-        </div>
-
-        <!-- Loan List Tab Content -->
-        <div id="contentLoanList" class="tab-content active">
-            <div class="mb-6">
-                <input type="text" id="searchInput" placeholder="機器名で検索..."
-                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div id="loadingIndicator" class="text-center text-gray-600 mb-4 hidden">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                データを読み込み中...
-            </div>
-
-            <div id="equipmentList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- 機器リストがここに動的に挿入されます -->
-            </div>
-        </div>
-
-        <!-- Equipment Management Tab Content -->
-        <div id="contentEquipmentManagement" class="tab-content">
-            <button id="addEquipmentButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 mb-4">
-                新しい機器を追加
-            </button>
-            <div id="equipmentManagementList">
-                 <table class="min-w-full bg-white rounded-lg shadow-md">
-                    <thead>
-                        <tr>
-                            <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="name">機器名 <span class="sort-indicator"></span></th>
-                            <th class="py-3 px-4 text-left text-gray-600">状態</th>
-                            <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="loanedToUserName">貸出者 <span class="sort-indicator"></span></th>
-                            <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="loanDate">貸出日 <span class="sort-indicator"></span></th>
-                            <th class="py-3 px-4 text-left text-gray-600">削除済み</th>
-                            <th class="py-3 px-4 text-left text-gray-600">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="equipmentManagementTableBody">
-                        <!-- 機器管理リストがここに動的に挿入されます -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- User Management Tab Content -->
-        <div id="contentUserManagement" class="tab-content">
-            <button id="addUserButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 mb-4">
-                新しいユーザーを追加
-            </button>
-            <div id="userManagementList">
-                <table class="min-w-full bg-white rounded-lg shadow-md">
-                    <thead>
-                        <tr>
-                            <th class="py-3 px-4 text-left text-gray-600">ユーザー名</th>
-                            <th class="py-3 px-4 text-left text-gray-600">メールアドレス</th>
-                            <th class="py-3 px-4 text-left text-gray-600">削除済み</th>
-                            <th class="py-3 px-4 text-left text-gray-600">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="userManagementTableBody">
-                        <!-- ユーザー管理リストがここに動的に挿入されます -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Loan History Tab Content -->
-        <div id="contentLoanHistory" class="tab-content">
-            <div class="mb-6 flex items-center space-x-4">
-                <input type="text" id="loanHistorySearchInput" placeholder="機器名または貸出者で検索..."
-                       class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="downloadLoanHistoryCsv" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                    CSVダウンロード
-                </button>
-            </div>
-            <div id="loanHistoryList">
-                <table class="min-w-full bg-white rounded-lg shadow-md">
-                    <thead>
-                        <tr>
-                            <th class="py-3 px-4 text-left text-gray-600">機器名</th>
-                            <th class="py-3 px-4 text-left text-gray-600">貸出者</th>
-                            <th class="py-3 px-4 text-left text-gray-600">貸出日</th>
-                            <th class="py-3 px-4 text-left text-gray-600">返却日</th>
-                        </tr>
-                    </thead>
-                    <tbody id="loanHistoryTableBody">
-                        <!-- 貸出履歴がここに動的に挿入されます -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="flex justify-between items-center mt-4">
-                <button id="prevLoanHistoryPage" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200" disabled>前へ</button>
-                <span id="loanHistoryPageInfo" class="text-gray-700"></span>
-                <button id="nextLoanHistoryPage" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">次へ</button>
-            </div>
-        </div>
-
-        <!-- 貸出/返却モーダル -->
-        <div id="loanModal" class="modal">
-            <div class="modal-content">
-                <span class="close-button" data-modal-id="loanModal">&times;</span>
-                <h2 id="loanModalTitle" class="text-2xl font-semibold mb-4 text-gray-800"></h2>
-                <p id="loanModalMessage" class="mb-4 text-gray-700"></p>
-                
-                <div id="borrowerSelectionGroup" class="mb-4">
-                    <label for="borrowerSelect" class="block text-gray-700 text-sm font-bold mb-2">貸出者を選択:</label>
-                    <select id="borrowerSelect" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-2">
-                        <option value="">-- ユーザーを選択 --</option>
-                    </select>
-                </div>
-                
-                <div class="flex justify-end space-x-3">
-                    <button id="cancelLoanModalButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                        キャンセル
-                    </button>
-                    <button id="confirmLoanModalButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                        確認
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 機器追加/編集モーダル -->
-        <div id="equipmentFormModal" class="modal">
-            <div class="modal-content">
-                <span class="close-button" data-modal-id="equipmentFormModal">&times;</span>
-                <h2 id="equipmentFormModalTitle" class="text-2xl font-semibold mb-4 text-gray-800">機器の追加/編集</h2>
-                <form id="equipmentForm">
-                    <div class="mb-4">
-                        <label for="equipmentName" class="block text-gray-700 text-sm font-bold mb-2">機器名:</label>
-                        <input type="text" id="equipmentName" required
-                               class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                    </div>
-                    <div class="flex justify-end space-x-3">
-                        <button type="button" id="cancelEquipmentFormButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                            キャンセル
-                        </button>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                            保存
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- ユーザー追加/編集モーダル -->
-        <div id="userFormModal" class="modal">
-            <div class="modal-content">
-                <span class="close-button" data-modal-id="userFormModal">&times;</span>
-                <h2 id="userFormModalTitle" class="text-2xl font-semibold mb-4 text-gray-800">ユーザーの追加/編集</h2>
-                <form id="userForm">
-                    <div class="mb-4">
-                        <label for="userName" class="block text-gray-700 text-sm font-bold mb-2">ユーザー名:</label>
-                        <input type="text" id="userName" required
-                               class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                    </div>
-                    <div class="mb-4">
-                        <label for="userEmail" class="block text-gray-700 text-sm font-bold mb-2">メールアドレス (必須):</label>
-                        <input type="email" id="userEmail" required
-                               class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                    </div>
-                    <div class="flex justify-end space-x-3">
-                        <button type="button" id="cancelUserFormButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                            キャンセル
-                        </button>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                            保存
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- カスタムメッセージモーダル -->
-        <div id="messageModal" class="modal">
-            <div class="message-modal-content">
-                <h2 id="messageModalTitle" class="text-xl font-semibold mb-4 text-gray-800"></h2>
-                <p id="messageModalText" class="mb-4 text-gray-700"></p>
-                <div id="messageModalButtons" class="flex justify-center space-x-3 mt-4">
-                    <button id="messageModalCancelButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">キャンセル</button>
-                    <button id="messageModalConfirmButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">OK</button>
-                </div>
-            </div>
-        </div>
-
+  <div class="container">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">貸出管理アプリ</h1>
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-4">
+      <p class="text-sm text-gray-600 mb-2 sm:mb-0">
+        ログインユーザー: <span id="userIdDisplay" class="font-semibold text-blue-600 break-all">未ログイン</span>
+      </p>
+      <div id="authButtons" class="flex space-x-2">
+        <button id="signInButton"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+          Googleでサインイン
+        </button>
+        <button id="signOutButton"
+          class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 hidden">
+          ログアウト
+        </button>
+      </div>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-300 mb-6">
+      <button id="tabLoanList" class="tab-button active">貸出リスト</button>
+      <button id="tabEquipmentManagement" class="tab-button">機器管理</button>
+      <button id="tabUserManagement" class="tab-button">ユーザー管理</button>
+      <button id="tabLoanHistory" class="tab-button">貸出履歴</button>
+    </div>
+
+    <!-- Loan List Tab Content -->
+    <div id="contentLoanList" class="tab-content active">
+      <div class="mb-6">
+        <input type="text" id="searchInput" placeholder="機器名で検索..."
+          class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+
+      <div id="loadingIndicator" class="text-center text-gray-600 mb-4 hidden">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+        データを読み込み中...
+      </div>
+
+      <div id="equipmentList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- 機器リストがここに動的に挿入されます -->
+      </div>
+    </div>
+
+    <!-- Equipment Management Tab Content -->
+    <div id="contentEquipmentManagement" class="tab-content">
+      <button id="addEquipmentButton"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 mb-4">
+        新しい機器を追加
+      </button>
+      <div id="equipmentManagementList">
+        <table class="min-w-full bg-white rounded-lg shadow-md">
+          <thead>
+            <tr>
+              <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="name">機器名 <span
+                  class="sort-indicator"></span></th>
+              <th class="py-3 px-4 text-left text-gray-600">状態</th>
+              <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="loanedToUserName">貸出者 <span
+                  class="sort-indicator"></span></th>
+              <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="loanDate">貸出日 <span
+                  class="sort-indicator"></span></th>
+              <th class="py-3 px-4 text-left text-gray-600">削除済み</th>
+              <th class="py-3 px-4 text-left text-gray-600">操作</th>
+            </tr>
+          </thead>
+          <tbody id="equipmentManagementTableBody">
+            <!-- 機器管理リストがここに動的に挿入されます -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- User Management Tab Content -->
+    <div id="contentUserManagement" class="tab-content">
+      <button id="addUserButton"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 mb-4">
+        新しいユーザーを追加
+      </button>
+      <div id="userManagementList">
+        <table class="min-w-full bg-white rounded-lg shadow-md">
+          <thead>
+            <tr>
+              <th class="py-3 px-4 text-left text-gray-600">ユーザー名</th>
+              <th class="py-3 px-4 text-left text-gray-600">メールアドレス</th>
+              <th class="py-3 px-4 text-left text-gray-600">削除済み</th>
+              <th class="py-3 px-4 text-left text-gray-600">操作</th>
+            </tr>
+          </thead>
+          <tbody id="userManagementTableBody">
+            <!-- ユーザー管理リストがここに動的に挿入されます -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Loan History Tab Content -->
+    <div id="contentLoanHistory" class="tab-content">
+      <div class="mb-6 flex items-center space-x-4">
+        <input type="text" id="loanHistorySearchInput" placeholder="機器名または貸出者で検索..."
+          class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button id="downloadLoanHistoryCsv"
+          class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+          CSVダウンロード
+        </button>
+      </div>
+      <div id="loanHistoryList">
+        <table class="min-w-full bg-white rounded-lg shadow-md">
+          <thead>
+            <tr>
+              <th class="py-3 px-4 text-left text-gray-600">機器名</th>
+              <th class="py-3 px-4 text-left text-gray-600">貸出者</th>
+              <th class="py-3 px-4 text-left text-gray-600">貸出日</th>
+              <th class="py-3 px-4 text-left text-gray-600">返却日</th>
+            </tr>
+          </thead>
+          <tbody id="loanHistoryTableBody">
+            <!-- 貸出履歴がここに動的に挿入されます -->
+          </tbody>
+        </table>
+      </div>
+      <div class="flex justify-between items-center mt-4">
+        <button id="prevLoanHistoryPage"
+          class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200"
+          disabled>前へ</button>
+        <span id="loanHistoryPageInfo" class="text-gray-700"></span>
+        <button id="nextLoanHistoryPage"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">次へ</button>
+      </div>
+    </div>
+
+    <!-- 貸出/返却モーダル -->
+    <div id="loanModal" class="modal">
+      <div class="modal-content">
+        <span class="close-button" data-modal-id="loanModal">&times;</span>
+        <h2 id="loanModalTitle" class="text-2xl font-semibold mb-4 text-gray-800"></h2>
+        <p id="loanModalMessage" class="mb-4 text-gray-700"></p>
+
+        <div id="borrowerSelectionGroup" class="mb-4">
+          <label for="borrowerSelect" class="block text-gray-700 text-sm font-bold mb-2">貸出者を選択:</label>
+          <select id="borrowerSelect"
+            class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mb-2">
+            <option value="">-- ユーザーを選択 --</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+          <button id="cancelLoanModalButton"
+            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+            キャンセル
+          </button>
+          <button id="confirmLoanModalButton"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+            確認
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 機器追加/編集モーダル -->
+    <div id="equipmentFormModal" class="modal">
+      <div class="modal-content">
+        <span class="close-button" data-modal-id="equipmentFormModal">&times;</span>
+        <h2 id="equipmentFormModalTitle" class="text-2xl font-semibold mb-4 text-gray-800">機器の追加/編集</h2>
+        <form id="equipmentForm">
+          <div class="mb-4">
+            <label for="equipmentName" class="block text-gray-700 text-sm font-bold mb-2">機器名:</label>
+            <input type="text" id="equipmentName" required
+              class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button type="button" id="cancelEquipmentFormButton"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+              キャンセル
+            </button>
+            <button type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+              保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ユーザー追加/編集モーダル -->
+    <div id="userFormModal" class="modal">
+      <div class="modal-content">
+        <span class="close-button" data-modal-id="userFormModal">&times;</span>
+        <h2 id="userFormModalTitle" class="text-2xl font-semibold mb-4 text-gray-800">ユーザーの追加/編集</h2>
+        <form id="userForm">
+          <div class="mb-4">
+            <label for="userName" class="block text-gray-700 text-sm font-bold mb-2">ユーザー名:</label>
+            <input type="text" id="userName" required
+              class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          </div>
+          <div class="mb-4">
+            <label for="userEmail" class="block text-gray-700 text-sm font-bold mb-2">メールアドレス (必須):</label>
+            <input type="email" id="userEmail" required
+              class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button type="button" id="cancelUserFormButton"
+              class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+              キャンセル
+            </button>
+            <button type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+              保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- カスタムメッセージモーダル -->
+    <div id="messageModal" class="modal">
+      <div class="message-modal-content">
+        <h2 id="messageModalTitle" class="text-xl font-semibold mb-4 text-gray-800"></h2>
+        <p id="messageModalText" class="mb-4 text-gray-700"></p>
+        <div id="messageModalButtons" class="flex justify-center space-x-3 mt-4">
+          <button id="messageModalCancelButton"
+            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">キャンセル</button>
+          <button id="messageModalConfirmButton"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">OK</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="script.js"></script>
 </body>
+
 </html>
