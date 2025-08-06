@@ -122,6 +122,37 @@
         tr:nth-child(even) {
             background-color: #f0f2f5;
         }
+        .sortable-header {
+            cursor: pointer;
+            position: relative;
+        }
+        .sortable-header:hover {
+            background-color: #e2e8f0; /* gray-200 */
+        }
+        .sort-indicator {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            margin-left: 5px;
+            vertical-align: middle;
+            transition: transform 0.2s ease-in-out;
+        }
+        .sort-indicator::after {
+            content: '▲'; /* Default up arrow */
+            font-size: 0.8em;
+            color: #a0aec0; /* gray-400 */
+            opacity: 0.5;
+        }
+        .sortable-header[data-sort-dir="asc"] .sort-indicator::after {
+            content: '▲';
+            opacity: 1;
+            color: #2b6cb0; /* blue-700 */
+        }
+        .sortable-header[data-sort-dir="desc"] .sort-indicator::after {
+            content: '▼';
+            opacity: 1;
+            color: #2b6cb0; /* blue-700 */
+        }
     </style>
 </head>
 <body>
@@ -175,10 +206,10 @@
                  <table class="min-w-full bg-white rounded-lg shadow-md">
                     <thead>
                         <tr>
-                            <th class="py-3 px-4 text-left text-gray-600">機器名</th>
+                            <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="name">機器名 <span class="sort-indicator"></span></th>
                             <th class="py-3 px-4 text-left text-gray-600">状態</th>
-                            <th class="py-3 px-4 text-left text-gray-600">貸出者</th>
-                            <th class="py-3 px-4 text-left text-gray-600">貸出日</th>
+                            <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="loanedToUserName">貸出者 <span class="sort-indicator"></span></th>
+                            <th class="py-3 px-4 text-left text-gray-600 sortable-header" data-sort="loanDate">貸出日 <span class="sort-indicator"></span></th>
                             <th class="py-3 px-4 text-left text-gray-600">削除済み</th>
                             <th class="py-3 px-4 text-left text-gray-600">操作</th>
                         </tr>
@@ -361,6 +392,7 @@
         let allUsers = [];
         let allEquipments = []; // 全機器データを保持
         let allLoanHistory = []; // 全貸出履歴データを保持
+        let equipmentSort = { key: 'name', dir: 'asc' }; // 機器管理リストのソート状態
         let lastVisible = null; // ページネーションの開始点
         let firstVisible = null; // ページネーションの終了点 (前ページ用)
         let currentPage = 1; // 現在のページ番号
@@ -647,19 +679,28 @@
         // --- 機器管理リストのレンダリング ---
         const renderEquipmentManagement = () => {
             if (!db || !isAuthReady) return;
+
+            // Firestoreからのデータ取得はonSnapshotでリアルタイムに
             const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
-            
             onSnapshot(query(equipmentCollectionRef), (snapshot) => {
                 loadingIndicator.classList.add('hidden');
                 allEquipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
+
+                // ソート処理
+                const sortedEquipments = [...allEquipments].sort((a, b) => {
+                    const valA = a[equipmentSort.key] || '';
+                    const valB = b[equipmentSort.key] || '';
+                    const comparison = valA.localeCompare(valB, undefined, { numeric: true });
+                    return equipmentSort.dir === 'asc' ? comparison : -comparison;
+                });
+
                 equipmentManagementTableBody.innerHTML = '';
-                if (allEquipments.length === 0) {
+                if (sortedEquipments.length === 0) {
                     equipmentManagementTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-4">機器が登録されていません。</td></tr>';
                     return;
                 }
 
-                allEquipments.forEach(equipment => {
+                sortedEquipments.forEach(equipment => {
                     const row = document.createElement('tr');
                     row.className = equipment.isDeleted ? 'bg-gray-200 opacity-50' : '';
                     row.innerHTML = `
@@ -677,6 +718,16 @@
                     `;
                     equipmentManagementTableBody.appendChild(row);
                 });
+
+                // ソートインジケーターの更新
+                document.querySelectorAll('#contentEquipmentManagement .sortable-header').forEach(header => {
+                    if (header.dataset.sort === equipmentSort.key) {
+                        header.setAttribute('data-sort-dir', equipmentSort.dir);
+                    } else {
+                        header.removeAttribute('data-sort-dir');
+                    }
+                });
+
             }, (error) => {
                 console.error("Error fetching equipment management list:", error);
                 showMessageModal("エラー", "機器管理リストの読み込みに失敗しました。");
@@ -1173,6 +1224,20 @@
             });
 
             // --- イベント委任 (動的コンテンツ) ---
+            document.getElementById('contentEquipmentManagement').addEventListener('click', (e) => {
+                const header = e.target.closest('.sortable-header');
+                if (header) {
+                    const sortKey = header.dataset.sort;
+                    if (equipmentSort.key === sortKey) {
+                        equipmentSort.dir = equipmentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        equipmentSort.key = sortKey;
+                        equipmentSort.dir = 'asc';
+                    }
+                    renderEquipmentManagement(); // ソートして再描画
+                }
+            });
+
             equipmentListDiv.addEventListener('click', (e) => {
                 if (e.target.classList.contains('lend-return-button')) {
                     const { id, status } = e.target.dataset;
