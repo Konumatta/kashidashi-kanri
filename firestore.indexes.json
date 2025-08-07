@@ -1,0 +1,23 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "loan_history",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "equipmentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "returnDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "loanDate",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

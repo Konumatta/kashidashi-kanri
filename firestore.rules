@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 許可されたユーザーかどうかをチェックする関数
+    // request.auth.uid が 'authorizedUsers' コレクションにドキュメントとして存在するかを確認
+    function isAuthorizedUser() {
+      return request.auth != null && get(/databases/$(database)/documents/authorizedUsers/$(request.auth.uid)).exists();
+    }
+
+    // 'artifacts' コレクション以下の全てのデータへのアクセスルール
+    // 許可されたユーザーのみが読み取り、作成、更新、削除を可能とする
+    match /artifacts/{appId}/{document=**} {
+      allow read, write: if isAuthorizedUser();
+    }
+
+    // 'authorizedUsers' コレクションへのアクセスルール
+    // 読み取りは認証済みユーザーなら誰でも許可（デバッグや確認のため）
+    // 書き込みは原則禁止とします。許可されたユーザーリストの管理は、
+    // Firebaseコンソールから手動で行うか、厳密な管理者権限を持つユーザー（例: 特定のUID）
+    // またはCloud Functions経由でのみ許可することを推奨します。
+    // ここでは、誤操作を防ぐため、デフォルトで書き込みを禁止します。
+    match /authorizedUsers/{userId} {
+      allow read: if request.auth != null; // 認証済みユーザーなら誰でも読める
+      allow write: if false; // このコレクションへの書き込みは、手動またはCloud Functions経由で行うことを推奨
+    }
+
+    // その他のコレクション（もしあれば）に対するデフォルトの拒否ルール
+    // 明示的に許可されていないコレクションへのアクセスは全て拒否されます。
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
