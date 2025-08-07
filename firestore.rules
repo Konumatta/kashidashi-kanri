@@ -26,10 +26,6 @@ service cloud.firestore {
       allow write: if false; // このコレクションへの書き込みは、手動またはCloud Functions経由で行うことを推奨
     }
 
-    // その他のコレクション（もしあれば）に対するデフォルトの拒否ルール
-    // 明示的に許可されていないコレクションへのアクセスは全て拒否されます。
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    
   }
 }
