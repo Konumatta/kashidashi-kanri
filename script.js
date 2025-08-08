@@ -22,6 +22,37 @@ let auth;
 let userId = null; // Firebase AuthのUID
 let userName = null; // ログインユーザーの表示名
 let isAuthReady = false;
+
+// Firestoreリスナーの解除関数を保持する変数
+let unsubscribeUsers = null;
+let unsubscribeEquipments = null;
+let unsubscribeLoanList = null;
+let unsubscribeEquipmentManagement = null;
+let unsubscribeUserManagement = null;
+
+// すべてのFirestoreリスナーを解除する関数
+const unsubscribeAllFirestoreListeners = () => {
+  if (unsubscribeUsers) {
+    unsubscribeUsers();
+    unsubscribeUsers = null;
+  }
+  if (unsubscribeEquipments) {
+    unsubscribeEquipments();
+    unsubscribeEquipments = null;
+  }
+  if (unsubscribeLoanList) {
+    unsubscribeLoanList();
+    unsubscribeLoanList = null;
+  }
+  if (unsubscribeEquipmentManagement) {
+    unsubscribeEquipmentManagement();
+    unsubscribeEquipmentManagement = null;
+  }
+  if (unsubscribeUserManagement) {
+    unsubscribeUserManagement();
+    unsubscribeUserManagement = null;
+  }
+};
 let allUsers = [];
 let allEquipments = []; // 全機器データを保持
 let allLoanHistory = []; // 全貸出履歴データを保持
@@ -179,17 +210,17 @@ const initializeFirebase = async () => {
         isAuthReady = true;
         await generateDummyData();
 
-        // Add this new onSnapshot listener for allUsers
+        // onSnapshot listener for allUsers
         const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
-        onSnapshot(query(usersCollectionRef), (snapshot) => {
+        unsubscribeUsers = onSnapshot(query(usersCollectionRef), (snapshot) => {
           allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         }, (error) => {
           console.error("Error fetching all users for global state:", error);
         });
 
-        // Add onSnapshot listener for allEquipments
+        // onSnapshot listener for allEquipments
         const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
-        onSnapshot(query(equipmentCollectionRef), (snapshot) => {
+        unsubscribeEquipments = onSnapshot(query(equipmentCollectionRef), (snapshot) => {
           allEquipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         }, (error) => {
           console.error("Error fetching all equipments for global state:", error);
@@ -197,12 +228,14 @@ const initializeFirebase = async () => {
 
         renderCurrentTabContent();
       } else {
+        // ログアウト時の処理
         userId = null; userName = null; isAuthReady = false;
         userIdDisplay.textContent = '未ログイン';
         signInButton.classList.remove('hidden');
         signOutButton.classList.add('hidden');
         document.querySelectorAll('.tab-content').forEach(el => el.innerHTML = '<p class="text-center text-gray-500 col-span-full">ログインして表示してください。</p>');
         loadingIndicator.classList.add('hidden');
+        unsubscribeAllFirestoreListeners(); // すべてのリスナーを解除
       }
     });
   } catch (error) {
@@ -244,6 +277,9 @@ const activateTab = (tabButton) => {
   const contentId = `content${tabButton.id.replace('tab', '')}`;
   document.getElementById(contentId).classList.add('active');
 
+  // タブが切り替わる際に既存のリスナーを解除
+  unsubscribeAllFirestoreListeners();
+
   if (userId) {
     renderCurrentTabContent();
   }
@@ -268,10 +304,16 @@ const renderCurrentTabContent = () => {
 // --- 貸出リストのレンダリング ---
 const renderEquipmentList = () => {
   if (!db || !isAuthReady) return;
+  // 既存のリスナーを解除
+  if (unsubscribeLoanList) {
+    unsubscribeLoanList();
+    unsubscribeLoanList = null;
+  }
+
   const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
   const q = query(equipmentCollectionRef, where('isDeleted', '==', false));
 
-  onSnapshot(q, (snapshot) => {
+  unsubscribeLoanList = onSnapshot(q, (snapshot) => {
     loadingIndicator.classList.add('hidden');
     const equipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const searchTerm = searchInput.value.toLowerCase();
@@ -313,9 +355,15 @@ const renderEquipmentList = () => {
 const renderEquipmentManagement = () => {
   if (!db || !isAuthReady) return;
 
+  // 既存のリスナーを解除
+  if (unsubscribeEquipmentManagement) {
+    unsubscribeEquipmentManagement();
+    unsubscribeEquipmentManagement = null;
+  }
+
   // Firestoreからのデータ取得はonSnapshotでリアルタイムに
   const equipmentCollectionRef = collection(db, `artifacts/${appId}/public/data/equipment`);
-  onSnapshot(query(equipmentCollectionRef), (snapshot) => {
+  unsubscribeEquipmentManagement = onSnapshot(query(equipmentCollectionRef), (snapshot) => {
     loadingIndicator.classList.add('hidden');
     allEquipments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -371,9 +419,15 @@ const renderEquipmentManagement = () => {
 // --- ユーザー管理リストのレンダリング ---
 const renderUserManagement = () => {
   if (!db || !isAuthReady) return;
+  // 既存のリスナーを解除
+  if (unsubscribeUserManagement) {
+    unsubscribeUserManagement();
+    unsubscribeUserManagement = null;
+  }
+
   const usersCollectionRef = collection(db, `artifacts/${appId}/public/data/users`);
 
-  onSnapshot(query(usersCollectionRef, orderBy('email', 'asc')), (snapshot) => {
+  unsubscribeUserManagement = onSnapshot(query(usersCollectionRef, orderBy('email', 'asc')), (snapshot) => {
     loadingIndicator.classList.add('hidden');
     allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
