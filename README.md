@@ -40,8 +40,8 @@
 
 ## スクリーンショット
 
-![貸出リスト画面](https://user-images.githubusercontent.com/12345678/your-image-url.png)  <!-- TODO: 画像URLを実際のスクリーンショットに置き換えてください -->
+![貸出リスト画面](images/2025-08-21_18h02_20.png)
 *（貸出リスト画面のスクリーンショット）*
 
-![ユーザー管理画面](https://user-images.githubusercontent.com/12345678/your-image-url.png)  <!-- TODO: 画像URLを実際のスクリーンショットに置き換えてください -->
+![ユーザー管理画面](images/2025-08-21_18h02_47.png)
 *（ユーザー管理画面のスクリーンショット）*
