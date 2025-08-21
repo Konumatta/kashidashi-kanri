@@ -28,6 +28,3 @@ ehthumbs.db
 # Build artifacts (if you ever add a build step)
 dist/
 build/
-
-# imagesフォルダ内のすべてのファイルを無視する
-images/
